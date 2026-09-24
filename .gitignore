@@ -40,3 +40,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Claude Code project instructions (not meant to be shared in the repo)
+CLAUDE.md
+AGENTS.md
+.claude/
