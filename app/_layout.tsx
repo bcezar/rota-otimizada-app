@@ -10,6 +10,10 @@ export default function RootLayout() {
       <StopsProvider>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="add-stop" options={{ presentation: 'modal', headerShown: false }} />
+          <Stack.Screen
+            name="pick-location"
+            options={{ presentation: 'modal', headerShown: false }}
+          />
         </Stack>
         <StatusBar style="auto" />
       </StopsProvider>

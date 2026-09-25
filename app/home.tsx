@@ -76,9 +76,17 @@ export default function Home() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable style={styles.addButton} onPress={() => router.push('/add-stop')}>
-        <Text style={styles.addButtonText}>+ Adicionar parada</Text>
-      </Pressable>
+      <View style={styles.addButtonsRow}>
+        <Pressable style={[styles.addButton, styles.addButtonHalf]} onPress={() => router.push('/add-stop')}>
+          <Text style={styles.addButtonText}>+ Adicionar parada</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.addButton, styles.addButtonHalf]}
+          onPress={() => router.push('/pick-location')}
+        >
+          <Text style={styles.addButtonText}>📍 Selecionar no mapa</Text>
+        </Pressable>
+      </View>
 
       <Pressable
         style={[styles.optimizeButton, stops.length < 2 && styles.buttonDisabled]}
@@ -142,15 +150,22 @@ const styles = StyleSheet.create({
   error: {
     color: '#dc2626',
   },
+  addButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   addButton: {
     backgroundColor: '#e5e7eb',
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
   },
+  addButtonHalf: {
+    flex: 1,
+  },
   addButtonText: {
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 14,
   },
   optimizeButton: {
     backgroundColor: '#1d4ed8',

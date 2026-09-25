@@ -1,10 +1,14 @@
+import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { FlatList, Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
+import { formatRouteText } from '../src/stops/formatRoute';
 import { useStops } from '../src/stops/StopsContext';
 
 export default function Result() {
   const { lastResult } = useStops();
+  const [copied, setCopied] = useState(false);
 
   if (!lastResult) {
     return (
@@ -12,6 +16,26 @@ export default function Result() {
         <Text>Nenhum resultado disponível.</Text>
       </View>
     );
+  }
+
+  async function handleOpenMaps() {
+    if (lastResult!.maps_url) {
+      await Linking.openURL(lastResult!.maps_url);
+    }
+  }
+
+  async function handleShare() {
+    try {
+      await Share.share({ message: formatRouteText(lastResult!) });
+    } catch {
+      // usuário cancelou o share sheet — não é um erro a reportar
+    }
+  }
+
+  async function handleCopy() {
+    await Clipboard.setStringAsync(formatRouteText(lastResult!));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -40,6 +64,23 @@ export default function Result() {
           </View>
         )}
       />
+
+      {copied ? <Text style={styles.copiedText}>Copiado!</Text> : null}
+
+      <View style={styles.actionsRow}>
+        {lastResult.maps_url ? (
+          <Pressable style={[styles.actionButton, styles.actionButtonThird]} onPress={handleOpenMaps}>
+            <Text style={styles.actionButtonText}>Google Maps</Text>
+          </Pressable>
+        ) : null}
+        <Pressable style={[styles.actionButton, styles.actionButtonThird]} onPress={handleShare}>
+          <Text style={styles.actionButtonText}>Compartilhar</Text>
+        </Pressable>
+        <Pressable style={[styles.actionButton, styles.actionButtonThird]} onPress={handleCopy}>
+          <Text style={styles.actionButtonText}>Copiar</Text>
+        </Pressable>
+      </View>
+
       <Pressable style={styles.button} onPress={() => router.replace('/home')}>
         <Text style={styles.buttonText}>Voltar</Text>
       </Pressable>
@@ -88,6 +129,28 @@ const styles = StyleSheet.create({
   legText: {
     color: '#6b7280',
     fontSize: 12,
+  },
+  copiedText: {
+    color: '#1a7f3c',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    backgroundColor: '#e5e7eb',
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+  },
+  actionButtonThird: {
+    flex: 1,
+  },
+  actionButtonText: {
+    fontWeight: '600',
+    fontSize: 13,
   },
   button: {
     backgroundColor: '#e5e7eb',

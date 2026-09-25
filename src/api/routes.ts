@@ -3,6 +3,7 @@ import type {
   AutocompleteResponse,
   Coordinates,
   GeocodeResponse,
+  ReverseGeocodeResponse,
   RouteResponse,
 } from './types';
 
@@ -24,6 +25,10 @@ export function geocode(q: string, locationHint?: Coordinates | null): Promise<G
   return apiFetch<GeocodeResponse>(
     `/api/v1/geocode?q=${encodeURIComponent(q)}${locationHintParams(locationHint)}`,
   );
+}
+
+export function reverseGeocode(lat: number, lng: number): Promise<ReverseGeocodeResponse> {
+  return apiFetch<ReverseGeocodeResponse>(`/api/v1/reverse?lat=${lat}&lng=${lng}`);
 }
 
 export function optimizeRoute(addresses: string[], token?: string | null): Promise<RouteResponse> {

@@ -25,6 +25,10 @@ export interface AutocompleteResponse {
 
 export interface GeocodeResponse extends Coordinates {}
 
+export interface ReverseGeocodeResponse {
+  address: string;
+}
+
 export interface RouteStop {
   order: number;
   original_address: string;
