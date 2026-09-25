@@ -14,6 +14,7 @@ interface StopsContextValue {
   stops: Stop[];
   addStop: (address: string) => void;
   removeStop: (id: string) => void;
+  clearAll: () => void;
   lastResult: RouteResponse | null;
   setLastResult: (result: RouteResponse | null) => void;
 }
@@ -56,8 +57,15 @@ export function StopsProvider({ children }: { children: ReactNode }) {
     setStops((prev) => prev.filter((stop) => stop.id !== id));
   }
 
+  function clearAll() {
+    setStops([]);
+    setLastResult(null);
+  }
+
   return (
-    <StopsContext.Provider value={{ stops, addStop, removeStop, lastResult, setLastResult }}>
+    <StopsContext.Provider
+      value={{ stops, addStop, removeStop, clearAll, lastResult, setLastResult }}
+    >
       {children}
     </StopsContext.Provider>
   );

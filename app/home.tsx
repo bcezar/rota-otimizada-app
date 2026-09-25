@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -17,13 +18,24 @@ import { useStops } from '../src/stops/StopsContext';
 
 export default function Home() {
   const { user, token, logout } = useAuth();
-  const { stops, removeStop, setLastResult } = useStops();
+  const { stops, removeStop, clearAll, setLastResult } = useStops();
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [error, setError] = useState('');
 
   async function handleLogout() {
     await logout();
     router.replace('/login');
+  }
+
+  function handleClearAll() {
+    Alert.alert(
+      'Limpar tudo?',
+      'Isso vai remover todas as paradas adicionadas.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Limpar', style: 'destructive', onPress: () => clearAll() },
+      ],
+    );
   }
 
   async function handleOptimize() {
@@ -56,6 +68,12 @@ export default function Home() {
           <Text style={styles.logoutText}>Sair</Text>
         </Pressable>
       </View>
+
+      {stops.length > 0 ? (
+        <Pressable style={styles.clearAllButton} onPress={handleClearAll}>
+          <Text style={styles.clearAllText}>Limpar tudo</Text>
+        </Pressable>
+      ) : null}
 
       <FlatList
         style={styles.list}
@@ -123,6 +141,15 @@ const styles = StyleSheet.create({
   logoutText: {
     color: '#6b7280',
     fontWeight: '600',
+  },
+  clearAllButton: {
+    alignSelf: 'flex-end',
+    marginBottom: 4,
+  },
+  clearAllText: {
+    color: '#dc2626',
+    fontWeight: '600',
+    fontSize: 13,
   },
   list: {
     flex: 1,

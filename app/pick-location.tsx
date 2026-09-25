@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { type Region } from 'react-native-maps';
 
 import * as routesApi from '../src/api/routes';
@@ -20,15 +20,20 @@ const REVERSE_GEOCODE_DEBOUNCE_MS = 600;
 // menores que isso para não estourar o rate limit de /api/v1/reverse.
 const MIN_COORD_DELTA = 0.0001;
 
+const TOAST_DURATION_MS = 1800;
+
 export default function PickLocation() {
-  const { addStop } = useStops();
+  const { stops, addStop } = useStops();
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
   const [address, setAddress] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [addedToast, setAddedToast] = useState(false);
+  const [duplicateToast, setDuplicateToast] = useState(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestId = useRef(0);
   const lastQueriedCoords = useRef<{ lat: number; lng: number } | null>(null);
+  const addedToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -38,7 +43,23 @@ export default function PickLocation() {
           setInitialRegion(FALLBACK_REGION);
           return;
         }
-        const position = await Location.getCurrentPositionAsync({});
+
+        // Última posição em cache é instantânea — usamos como aproximação
+        // imediata pra evitar tela em branco enquanto o GPS de precisão
+        // (mais lento, sobretudo no simulador) ainda não respondeu.
+        const lastKnown = await Location.getLastKnownPositionAsync({});
+        if (lastKnown) {
+          setInitialRegion({
+            latitude: lastKnown.coords.latitude,
+            longitude: lastKnown.coords.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          });
+        }
+
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
         setInitialRegion({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
@@ -46,9 +67,13 @@ export default function PickLocation() {
           longitudeDelta: 0.01,
         });
       } catch {
-        setInitialRegion(FALLBACK_REGION);
+        setInitialRegion((current) => current ?? FALLBACK_REGION);
       }
     })();
+
+    return () => {
+      if (addedToastTimer.current) clearTimeout(addedToastTimer.current);
+    };
   }, []);
 
   function handleRegionChangeComplete(region: Region) {
@@ -65,6 +90,7 @@ export default function PickLocation() {
     setIsLoading(true);
     setError('');
     setAddress('');
+    setDuplicateToast(false);
 
     const thisRequestId = ++requestId.current;
     debounceTimer.current = setTimeout(async () => {
@@ -82,14 +108,39 @@ export default function PickLocation() {
     }, REVERSE_GEOCODE_DEBOUNCE_MS);
   }
 
+  function confirmAdd() {
+    addStop(address);
+    if (addedToastTimer.current) clearTimeout(addedToastTimer.current);
+    setAddedToast(true);
+    addedToastTimer.current = setTimeout(() => setAddedToast(false), TOAST_DURATION_MS);
+  }
+
   function handleConfirm() {
     if (!address) return;
-    addStop(address);
-    router.back();
+
+    if (stops.some((stop) => stop.address === address)) {
+      setDuplicateToast(true);
+      return;
+    }
+
+    confirmAdd();
+  }
+
+  function handleAddAnyway() {
+    setDuplicateToast(false);
+    confirmAdd();
+  }
+
+  function handleDismissDuplicate() {
+    setDuplicateToast(false);
   }
 
   if (!initialRegion) {
-    return <View style={styles.container} />;
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
   }
 
   return (
@@ -103,20 +154,40 @@ export default function PickLocation() {
         <Text style={styles.pinEmoji}>📍</Text>
       </View>
 
+      {addedToast ? (
+        <View pointerEvents="none" style={styles.addedToast}>
+          <Text style={styles.addedToastText}>Endereço adicionado</Text>
+        </View>
+      ) : null}
+
+      {duplicateToast ? (
+        <View style={styles.duplicateToast}>
+          <Text style={styles.duplicateToastText}>Já adicionado. Adicionar de novo?</Text>
+          <View style={styles.duplicateToastActions}>
+            <Pressable style={styles.duplicateToastIconButton} onPress={handleDismissDuplicate}>
+              <Text style={styles.duplicateToastIcon}>✕</Text>
+            </Pressable>
+            <Pressable style={styles.duplicateToastIconButton} onPress={handleAddAnyway}>
+              <Text style={styles.duplicateToastIcon}>✓</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
       <View style={styles.footer}>
         <Text style={styles.addressText}>
           {isLoading ? 'Carregando...' : error || address || 'Arraste o mapa para escolher um local'}
         </Text>
         <View style={styles.actions}>
           <Pressable style={styles.cancelButton} onPress={() => router.back()}>
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+            <Text style={styles.cancelButtonText}>Concluir</Text>
           </Pressable>
           <Pressable
             style={[styles.confirmButton, (isLoading || !address) && styles.buttonDisabled]}
             disabled={isLoading || !address}
             onPress={handleConfirm}
           >
-            <Text style={styles.confirmButtonText}>Confirmar</Text>
+            <Text style={styles.confirmButtonText}>Adicionar parada</Text>
           </Pressable>
         </View>
       </View>
@@ -127,6 +198,10 @@ export default function PickLocation() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   map: {
     flex: 1,
@@ -140,6 +215,57 @@ const styles = StyleSheet.create({
   },
   pinEmoji: {
     fontSize: 32,
+  },
+  addedToast: {
+    position: 'absolute',
+    top: 60,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(26, 127, 60, 0.92)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 100,
+  },
+  addedToastText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  duplicateToast: {
+    position: 'absolute',
+    top: '50%',
+    alignSelf: 'center',
+    marginTop: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(13, 17, 32, 0.9)',
+    paddingVertical: 8,
+    paddingLeft: 14,
+    paddingRight: 6,
+    borderRadius: 100,
+    maxWidth: '90%',
+  },
+  duplicateToastText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  duplicateToastActions: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  duplicateToastIconButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  duplicateToastIcon: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   footer: {
     padding: 16,

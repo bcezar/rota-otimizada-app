@@ -9,6 +9,8 @@ import { useStops } from '../src/stops/StopsContext';
 export default function Result() {
   const { lastResult } = useStops();
   const [copied, setCopied] = useState(false);
+  const [visited, setVisited] = useState<Record<number, boolean>>({});
+  const [skipped, setSkipped] = useState<Record<number, boolean>>({});
 
   if (!lastResult) {
     return (
@@ -16,6 +18,42 @@ export default function Result() {
         <Text>Nenhum resultado disponível.</Text>
       </View>
     );
+  }
+
+  function toggleVisited(order: number) {
+    setVisited((prev) => {
+      const next = { ...prev };
+      if (next[order]) {
+        delete next[order];
+      } else {
+        next[order] = true;
+      }
+      return next;
+    });
+    setSkipped((prev) => {
+      if (!prev[order]) return prev;
+      const next = { ...prev };
+      delete next[order];
+      return next;
+    });
+  }
+
+  function toggleSkipped(order: number) {
+    setSkipped((prev) => {
+      const next = { ...prev };
+      if (next[order]) {
+        delete next[order];
+      } else {
+        next[order] = true;
+      }
+      return next;
+    });
+    setVisited((prev) => {
+      if (!prev[order]) return prev;
+      const next = { ...prev };
+      delete next[order];
+      return next;
+    });
   }
 
   async function handleOpenMaps() {
@@ -50,19 +88,33 @@ export default function Result() {
       <FlatList
         data={lastResult.optimized_route}
         keyExtractor={(stop) => String(stop.order)}
-        renderItem={({ item }) => (
-          <View style={styles.stopRow}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{item.order}</Text>
+        renderItem={({ item }) => {
+          const isVisited = !!visited[item.order];
+          const isSkipped = !!skipped[item.order];
+          return (
+            <View style={[styles.stopRow, isSkipped && styles.stopRowSkipped]}>
+              <View style={[styles.badge, isVisited && styles.badgeVisited]}>
+                <Text style={styles.badgeText}>{item.order}</Text>
+              </View>
+              <View style={styles.stopInfo}>
+                <Text style={isSkipped && styles.strikethrough}>{item.original_address}</Text>
+                {item.leg_distance_km != null ? (
+                  <Text style={styles.legText}>{item.leg_distance_km.toFixed(1)} km até a próxima</Text>
+                ) : null}
+              </View>
+              <Pressable onPress={() => toggleVisited(item.order)}>
+                <Text style={[styles.stopActionText, isVisited && styles.stopActionActiveVisited]}>
+                  {isVisited ? '✓ Visitada' : 'Visitar'}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => toggleSkipped(item.order)}>
+                <Text style={[styles.stopActionText, isSkipped && styles.stopActionActiveSkipped]}>
+                  {isSkipped ? 'Pulada' : 'Pular'}
+                </Text>
+              </Pressable>
             </View>
-            <View style={styles.stopInfo}>
-              <Text>{item.original_address}</Text>
-              {item.leg_distance_km != null ? (
-                <Text style={styles.legText}>{item.leg_distance_km.toFixed(1)} km até a próxima</Text>
-              ) : null}
-            </View>
-          </View>
-        )}
+          );
+        }}
       />
 
       {copied ? <Text style={styles.copiedText}>Copiado!</Text> : null}
@@ -105,10 +157,13 @@ const styles = StyleSheet.create({
   stopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  stopRowSkipped: {
+    opacity: 0.5,
   },
   badge: {
     width: 28,
@@ -118,6 +173,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  badgeVisited: {
+    backgroundColor: '#1a7f3c',
+  },
   badgeText: {
     color: '#fff',
     fontWeight: '700',
@@ -126,9 +184,23 @@ const styles = StyleSheet.create({
   stopInfo: {
     flex: 1,
   },
+  strikethrough: {
+    textDecorationLine: 'line-through',
+  },
   legText: {
     color: '#6b7280',
     fontSize: 12,
+  },
+  stopActionText: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  stopActionActiveVisited: {
+    color: '#1a7f3c',
+  },
+  stopActionActiveSkipped: {
+    color: '#dc2626',
   },
   copiedText: {
     color: '#1a7f3c',
