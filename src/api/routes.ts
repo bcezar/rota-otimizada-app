@@ -31,10 +31,19 @@ export function reverseGeocode(lat: number, lng: number): Promise<ReverseGeocode
   return apiFetch<ReverseGeocodeResponse>(`/api/v1/reverse?lat=${lat}&lng=${lng}`);
 }
 
-export function optimizeRoute(addresses: string[], token?: string | null): Promise<RouteResponse> {
+export function optimizeRoute(
+  addresses: string[],
+  token?: string | null,
+  origin?: string,
+  destination?: string,
+): Promise<RouteResponse> {
   return apiFetch<RouteResponse>('/api/v1/routes/optimize', {
     method: 'POST',
-    body: { addresses },
+    body: {
+      addresses,
+      ...(origin ? { origin } : {}),
+      ...(destination ? { destination } : {}),
+    },
     token,
   });
 }

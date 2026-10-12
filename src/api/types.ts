@@ -37,12 +37,19 @@ export interface RouteStop {
   leg_duration_min: number | null;
 }
 
+export interface OriginInfo {
+  address: string;
+  coordinates: Coordinates;
+}
+
 export interface RouteResponse {
   optimized_route: RouteStop[];
   total_distance_km: number;
   total_duration_min: number | null;
   geocoding_failures: string[];
   maps_url: string | null;
+  origin: OriginInfo | null;
+  destination: OriginInfo | null;
 }
 
 export interface StopLimitExceededDetail {

@@ -7,6 +7,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -18,7 +19,17 @@ import { useStops } from '../src/stops/StopsContext';
 
 export default function Home() {
   const { user, token, logout } = useAuth();
-  const { stops, removeStop, clearAll, setLastResult } = useStops();
+  const {
+    stops,
+    removeStop,
+    updateStopDescription,
+    clearAll,
+    origin,
+    setOrigin,
+    destination,
+    setDestination,
+    setLastResult,
+  } = useStops();
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [error, setError] = useState('');
 
@@ -45,6 +56,8 @@ export default function Home() {
       const result = await routesApi.optimizeRoute(
         stops.map((stop) => stop.address),
         token,
+        origin.trim() || undefined,
+        destination.trim() || undefined,
       );
       setLastResult(result);
       router.push('/result');
@@ -75,6 +88,21 @@ export default function Home() {
         </Pressable>
       ) : null}
 
+      <View style={styles.fixedPointsRow}>
+        <TextInput
+          style={styles.fixedPointInput}
+          placeholder="Origem (opcional)"
+          value={origin}
+          onChangeText={setOrigin}
+        />
+        <TextInput
+          style={styles.fixedPointInput}
+          placeholder="Destino (opcional)"
+          value={destination}
+          onChangeText={setDestination}
+        />
+      </View>
+
       <FlatList
         style={styles.list}
         data={stops}
@@ -84,7 +112,15 @@ export default function Home() {
         }
         renderItem={({ item }) => (
           <View style={styles.stopRow}>
-            <Text style={styles.stopAddress}>{item.address}</Text>
+            <View style={styles.stopMain}>
+              <Text style={styles.stopAddress}>{item.address}</Text>
+              <TextInput
+                style={styles.descriptionInput}
+                placeholder="Anotação (opcional)"
+                value={item.description}
+                onChangeText={(text) => updateStopDescription(item.id, text)}
+              />
+            </View>
             <Pressable onPress={() => removeStop(item.id)}>
               <Text style={styles.removeText}>Remover</Text>
             </Pressable>
@@ -151,6 +187,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 13,
   },
+  fixedPointsRow: {
+    gap: 8,
+    marginBottom: 8,
+  },
+  fixedPointInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    padding: 10,
+    fontSize: 14,
+  },
   list: {
     flex: 1,
   },
@@ -167,9 +214,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
-  stopAddress: {
+  stopMain: {
     flex: 1,
     marginRight: 12,
+    gap: 4,
+  },
+  stopAddress: {
+    flex: 1,
+  },
+  descriptionInput: {
+    fontSize: 12,
+    color: '#6b7280',
+    padding: 0,
   },
   removeText: {
     color: '#dc2626',

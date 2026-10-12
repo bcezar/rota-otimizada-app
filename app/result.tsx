@@ -7,7 +7,7 @@ import { formatRouteText } from '../src/stops/formatRoute';
 import { useStops } from '../src/stops/StopsContext';
 
 export default function Result() {
-  const { lastResult } = useStops();
+  const { stops, lastResult } = useStops();
   const [copied, setCopied] = useState(false);
   const [visited, setVisited] = useState<Record<number, boolean>>({});
   const [skipped, setSkipped] = useState<Record<number, boolean>>({});
@@ -64,14 +64,14 @@ export default function Result() {
 
   async function handleShare() {
     try {
-      await Share.share({ message: formatRouteText(lastResult!) });
+      await Share.share({ message: formatRouteText(lastResult!, stops) });
     } catch {
       // usuário cancelou o share sheet — não é um erro a reportar
     }
   }
 
   async function handleCopy() {
-    await Clipboard.setStringAsync(formatRouteText(lastResult!));
+    await Clipboard.setStringAsync(formatRouteText(lastResult!, stops));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -88,16 +88,46 @@ export default function Result() {
       <FlatList
         data={lastResult.optimized_route}
         keyExtractor={(stop) => String(stop.order)}
+        ListHeaderComponent={
+          lastResult.origin ? (
+            <View style={styles.stopRow}>
+              <View style={[styles.badge, styles.badgeFixed]}>
+                <Text style={styles.badgeText}>0</Text>
+              </View>
+              <View style={styles.stopInfo}>
+                <Text>{lastResult.origin.address}</Text>
+                <Text style={styles.legText}>Origem</Text>
+              </View>
+            </View>
+          ) : null
+        }
+        ListFooterComponent={
+          lastResult.destination ? (
+            <View style={styles.stopRow}>
+              <View style={[styles.badge, styles.badgeFixed]}>
+                <Text style={styles.badgeText}>F</Text>
+              </View>
+              <View style={styles.stopInfo}>
+                <Text>{lastResult.destination.address}</Text>
+                <Text style={styles.legText}>Destino</Text>
+              </View>
+            </View>
+          ) : null
+        }
         renderItem={({ item }) => {
           const isVisited = !!visited[item.order];
           const isSkipped = !!skipped[item.order];
+          const description = stops.find((s) => s.address === item.original_address)?.description;
           return (
             <View style={[styles.stopRow, isSkipped && styles.stopRowSkipped]}>
               <View style={[styles.badge, isVisited && styles.badgeVisited]}>
                 <Text style={styles.badgeText}>{item.order}</Text>
               </View>
               <View style={styles.stopInfo}>
-                <Text style={isSkipped && styles.strikethrough}>{item.original_address}</Text>
+                <Text style={isSkipped && styles.strikethrough}>
+                  {description ? `${description} — ` : ''}
+                  {item.original_address}
+                </Text>
                 {item.leg_distance_km != null ? (
                   <Text style={styles.legText}>{item.leg_distance_km.toFixed(1)} km até a próxima</Text>
                 ) : null}
@@ -175,6 +205,9 @@ const styles = StyleSheet.create({
   },
   badgeVisited: {
     backgroundColor: '#1a7f3c',
+  },
+  badgeFixed: {
+    backgroundColor: '#6b7280',
   },
   badgeText: {
     color: '#fff',
