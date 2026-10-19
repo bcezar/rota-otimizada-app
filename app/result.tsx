@@ -5,6 +5,7 @@ import { FlatList, Linking, Pressable, Share, StyleSheet, Text, View } from 'rea
 
 import { formatRouteText } from '../src/stops/formatRoute';
 import { useStops } from '../src/stops/StopsContext';
+import { colors } from '../src/theme/colors';
 
 export default function Result() {
   const { stops, lastResult } = useStops();
@@ -15,7 +16,7 @@ export default function Result() {
   if (!lastResult) {
     return (
       <View style={styles.container}>
-        <Text>Nenhum resultado disponível.</Text>
+        <Text style={styles.emptyText}>Nenhum resultado disponível.</Text>
       </View>
     );
   }
@@ -95,7 +96,7 @@ export default function Result() {
                 <Text style={styles.badgeText}>0</Text>
               </View>
               <View style={styles.stopInfo}>
-                <Text>{lastResult.origin.address}</Text>
+                <Text style={styles.stopAddressText}>{lastResult.origin.address}</Text>
                 <Text style={styles.legText}>Origem</Text>
               </View>
             </View>
@@ -108,7 +109,7 @@ export default function Result() {
                 <Text style={styles.badgeText}>F</Text>
               </View>
               <View style={styles.stopInfo}>
-                <Text>{lastResult.destination.address}</Text>
+                <Text style={styles.stopAddressText}>{lastResult.destination.address}</Text>
                 <Text style={styles.legText}>Destino</Text>
               </View>
             </View>
@@ -124,7 +125,7 @@ export default function Result() {
                 <Text style={styles.badgeText}>{item.order}</Text>
               </View>
               <View style={styles.stopInfo}>
-                <Text style={isSkipped && styles.strikethrough}>
+                <Text style={[styles.stopAddressText, isSkipped && styles.strikethrough]}>
                   {description ? `${description} — ` : ''}
                   {item.original_address}
                 </Text>
@@ -173,16 +174,21 @@ export default function Result() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
     padding: 24,
     gap: 12,
   },
   title: {
+    color: colors.text,
     fontSize: 22,
     fontWeight: '700',
   },
   subtitle: {
-    color: '#6b7280',
+    color: colors.textMuted,
     marginBottom: 12,
+  },
+  emptyText: {
+    color: colors.textMuted,
   },
   stopRow: {
     flexDirection: 'row',
@@ -190,7 +196,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.border,
   },
   stopRowSkipped: {
     opacity: 0.5,
@@ -199,44 +205,47 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#1d4ed8',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeVisited: {
-    backgroundColor: '#1a7f3c',
+    backgroundColor: colors.success,
   },
   badgeFixed: {
-    backgroundColor: '#6b7280',
+    backgroundColor: colors.textMuted,
   },
   badgeText: {
-    color: '#fff',
+    color: colors.onAccent,
     fontWeight: '700',
     fontSize: 12,
   },
   stopInfo: {
     flex: 1,
   },
+  stopAddressText: {
+    color: colors.text,
+  },
   strikethrough: {
     textDecorationLine: 'line-through',
   },
   legText: {
-    color: '#6b7280',
+    color: colors.textMuted,
     fontSize: 12,
   },
   stopActionText: {
     fontSize: 12,
-    color: '#6b7280',
+    color: colors.textMuted,
     fontWeight: '600',
   },
   stopActionActiveVisited: {
-    color: '#1a7f3c',
+    color: colors.success,
   },
   stopActionActiveSkipped: {
-    color: '#dc2626',
+    color: colors.danger,
   },
   copiedText: {
-    color: '#1a7f3c',
+    color: colors.success,
     textAlign: 'center',
     fontWeight: '600',
   },
@@ -245,7 +254,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionButton: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 10,
     padding: 12,
     alignItems: 'center',
@@ -254,16 +265,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionButtonText: {
+    color: colors.text,
     fontWeight: '600',
     fontSize: 13,
   },
   button: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
   },
   buttonText: {
+    color: colors.text,
     fontWeight: '600',
     fontSize: 16,
   },

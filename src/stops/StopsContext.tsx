@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
-import type { RouteResponse } from '../api/types';
+import type { Coordinates, RouteResponse } from '../api/types';
 
 const STORAGE_KEY = 'stops';
 
@@ -15,6 +15,8 @@ interface PersistedState {
   stops: Stop[];
   origin: string;
   destination: string;
+  fixedFirst: string | null;
+  fixedLast: string | null;
 }
 
 interface StopsContextValue {
@@ -27,6 +29,12 @@ interface StopsContextValue {
   setOrigin: (value: string) => void;
   destination: string;
   setDestination: (value: string) => void;
+  fixedFirst: string | null;
+  toggleFixedFirst: (address: string) => void;
+  fixedLast: string | null;
+  toggleFixedLast: (address: string) => void;
+  locationHint: Coordinates | null;
+  setLocationHint: (coords: Coordinates) => void;
   lastResult: RouteResponse | null;
   setLastResult: (result: RouteResponse | null) => void;
 }
@@ -46,12 +54,16 @@ function parsePersisted(raw: string): PersistedState {
       })),
       origin: '',
       destination: '',
+      fixedFirst: null,
+      fixedLast: null,
     };
   }
   return {
     stops: (parsed.stops ?? []).map((stop: Stop) => ({ ...stop, description: stop.description ?? '' })),
     origin: parsed.origin ?? '',
     destination: parsed.destination ?? '',
+    fixedFirst: parsed.fixedFirst ?? null,
+    fixedLast: parsed.fixedLast ?? null,
   };
 }
 
@@ -59,6 +71,12 @@ export function StopsProvider({ children }: { children: ReactNode }) {
   const [stops, setStops] = useState<Stop[]>([]);
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
+  const [fixedFirst, setFixedFirst] = useState<string | null>(null);
+  const [fixedLast, setFixedLast] = useState<string | null>(null);
+  // Não persistido — só serve de bias para o autocomplete durante a sessão
+  // atual, igual ao locationHint do site (que se auto-ajusta pelo 1º endereço
+  // confirmado em qualquer campo: parada, origem, destino ou mapa).
+  const [locationHint, setLocationHintState] = useState<Coordinates | null>(null);
   const [lastResult, setLastResult] = useState<RouteResponse | null>(null);
   const hasLoaded = useRef(false);
 
@@ -71,6 +89,8 @@ export function StopsProvider({ children }: { children: ReactNode }) {
           setStops(parsed.stops);
           setOrigin(parsed.origin);
           setDestination(parsed.destination);
+          setFixedFirst(parsed.fixedFirst);
+          setFixedLast(parsed.fixedLast);
           nextId = parsed.stops.reduce((max, stop) => Math.max(max, Number(stop.id) || 0), 0);
         }
       } finally {
@@ -81,9 +101,9 @@ export function StopsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hasLoaded.current) return;
-    const state: PersistedState = { stops, origin, destination };
+    const state: PersistedState = { stops, origin, destination, fixedFirst, fixedLast };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {});
-  }, [stops, origin, destination]);
+  }, [stops, origin, destination, fixedFirst, fixedLast]);
 
   function addStop(address: string) {
     nextId += 1;
@@ -91,17 +111,41 @@ export function StopsProvider({ children }: { children: ReactNode }) {
   }
 
   function removeStop(id: string) {
+    const removed = stops.find((stop) => stop.id === id);
     setStops((prev) => prev.filter((stop) => stop.id !== id));
+    if (removed) {
+      setFixedFirst((prev) => (prev === removed.address ? null : prev));
+      setFixedLast((prev) => (prev === removed.address ? null : prev));
+    }
   }
 
   function updateStopDescription(id: string, description: string) {
     setStops((prev) => prev.map((stop) => (stop.id === id ? { ...stop, description } : stop)));
   }
 
+  function toggleFixedFirst(address: string) {
+    setFixedFirst((prev) => (prev === address ? null : address));
+    setFixedLast((prev) => (prev === address ? null : prev));
+  }
+
+  function toggleFixedLast(address: string) {
+    setFixedLast((prev) => (prev === address ? null : address));
+    setFixedFirst((prev) => (prev === address ? null : prev));
+  }
+
+  function setLocationHint(coords: Coordinates) {
+    // Replica o site: só fixa a dica uma vez por sessão (primeiro endereço
+    // confirmado), para manter o bias estável enquanto o usuário monta a rota.
+    setLocationHintState((prev) => prev ?? coords);
+  }
+
   function clearAll() {
     setStops([]);
     setOrigin('');
     setDestination('');
+    setFixedFirst(null);
+    setFixedLast(null);
+    setLocationHintState(null);
     setLastResult(null);
   }
 
@@ -117,6 +161,12 @@ export function StopsProvider({ children }: { children: ReactNode }) {
         setOrigin,
         destination,
         setDestination,
+        fixedFirst,
+        toggleFixedFirst,
+        fixedLast,
+        toggleFixedLast,
+        locationHint,
+        setLocationHint,
         lastResult,
         setLastResult,
       }}

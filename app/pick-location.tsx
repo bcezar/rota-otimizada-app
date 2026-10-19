@@ -6,6 +6,7 @@ import MapView, { type Region } from 'react-native-maps';
 
 import * as routesApi from '../src/api/routes';
 import { useStops } from '../src/stops/StopsContext';
+import { colors } from '../src/theme/colors';
 
 const FALLBACK_REGION: Region = {
   latitude: -22.9099,
@@ -23,9 +24,10 @@ const MIN_COORD_DELTA = 0.0001;
 const TOAST_DURATION_MS = 1800;
 
 export default function PickLocation() {
-  const { stops, addStop } = useStops();
+  const { stops, addStop, setLocationHint } = useStops();
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
   const [address, setAddress] = useState('');
+  const [addressCoords, setAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [addedToast, setAddedToast] = useState(false);
@@ -99,6 +101,7 @@ export default function PickLocation() {
         const res = await routesApi.reverseGeocode(region.latitude, region.longitude);
         if (requestId.current !== thisRequestId) return;
         setAddress(res.address);
+        setAddressCoords({ lat: region.latitude, lng: region.longitude });
       } catch {
         if (requestId.current !== thisRequestId) return;
         setError('Não foi possível identificar um endereço aqui.');
@@ -110,6 +113,7 @@ export default function PickLocation() {
 
   function confirmAdd() {
     addStop(address);
+    if (addressCoords) setLocationHint(addressCoords);
     if (addedToastTimer.current) clearTimeout(addedToastTimer.current);
     setAddedToast(true);
     addedToastTimer.current = setTimeout(() => setAddedToast(false), TOAST_DURATION_MS);
@@ -198,6 +202,7 @@ export default function PickLocation() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -270,10 +275,11 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     gap: 12,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   addressText: {
     minHeight: 40,
+    color: colors.text,
   },
   actions: {
     flexDirection: 'row',
@@ -283,24 +289,27 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
   },
   cancelButtonText: {
+    color: colors.text,
     fontWeight: '600',
   },
   confirmButton: {
     flex: 1,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: '#1d4ed8',
+    backgroundColor: colors.accent,
     alignItems: 'center',
   },
   buttonDisabled: {
     opacity: 0.5,
   },
   confirmButtonText: {
-    color: '#fff',
+    color: colors.onAccent,
     fontWeight: '600',
   },
 });

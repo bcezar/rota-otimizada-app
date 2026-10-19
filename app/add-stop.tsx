@@ -13,9 +13,10 @@ import {
 import * as routesApi from '../src/api/routes';
 import { useDebouncedValue } from '../src/hooks/useDebouncedValue';
 import { useStops } from '../src/stops/StopsContext';
+import { colors } from '../src/theme/colors';
 
 export default function AddStop() {
-  const { addStop } = useStops();
+  const { addStop, locationHint, setLocationHint } = useStops();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -30,7 +31,7 @@ export default function AddStop() {
     }
     let cancelled = false;
     routesApi
-      .autocomplete(trimmed)
+      .autocomplete(trimmed, locationHint)
       .then((res) => {
         if (!cancelled) setSuggestions(res.suggestions);
       })
@@ -40,14 +41,18 @@ export default function AddStop() {
     return () => {
       cancelled = true;
     };
+    // locationHint intencionalmente fora das deps: só queremos re-buscar
+    // quando o texto muda, não quando a dica de localização é definida.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery]);
 
   async function confirmAddress(address: string) {
     setError('');
     setIsConfirming(true);
     try {
-      await routesApi.geocode(address);
+      const geocoded = await routesApi.geocode(address, locationHint);
       addStop(address);
+      setLocationHint({ lat: geocoded.lat, lng: geocoded.lng });
       router.back();
     } catch {
       setError('Não foi possível localizar esse endereço. Tente ser mais específico.');
@@ -62,6 +67,7 @@ export default function AddStop() {
       <TextInput
         style={styles.input}
         placeholder="Digite um endereço"
+        placeholderTextColor={colors.textMuted}
         autoFocus
         value={query}
         onChangeText={setQuery}
@@ -74,7 +80,7 @@ export default function AddStop() {
         keyExtractor={(item, index) => `${item}-${index}`}
         renderItem={({ item }) => (
           <Pressable style={styles.suggestion} onPress={() => confirmAddress(item)}>
-            <Text>{item}</Text>
+            <Text style={styles.suggestionText}>{item}</Text>
           </Pressable>
         )}
       />
@@ -88,22 +94,26 @@ export default function AddStop() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
     padding: 24,
     gap: 12,
   },
   title: {
+    color: colors.text,
     fontSize: 20,
     fontWeight: '700',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    color: colors.text,
     borderRadius: 10,
     padding: 14,
     fontSize: 16,
   },
   error: {
-    color: '#dc2626',
+    color: colors.danger,
   },
   loading: {
     marginTop: 4,
@@ -111,14 +121,17 @@ const styles = StyleSheet.create({
   suggestion: {
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.border,
+  },
+  suggestionText: {
+    color: colors.text,
   },
   cancelButton: {
     alignItems: 'center',
     padding: 14,
   },
   cancelButtonText: {
-    color: '#6b7280',
+    color: colors.textMuted,
     fontWeight: '600',
   },
 });

@@ -11,6 +11,7 @@ import {
 
 import { ApiError } from '../src/api/client';
 import { useAuth } from '../src/auth/AuthContext';
+import { colors } from '../src/theme/colors';
 
 export default function Login() {
   const { login } = useAuth();
@@ -23,7 +24,7 @@ export default function Login() {
     setIsSubmitting(true);
     try {
       await login(email.trim());
-      router.replace('/home');
+      router.replace('/navegacao');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Não foi possível entrar. Tente novamente.');
     } finally {
@@ -37,6 +38,7 @@ export default function Login() {
       <TextInput
         style={styles.input}
         placeholder="seu@email.com"
+        placeholderTextColor={colors.textMuted}
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
@@ -50,7 +52,7 @@ export default function Login() {
         onPress={handleSubmit}
       >
         {isSubmitting ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.onAccent} />
         ) : (
           <Text style={styles.buttonText}>Entrar</Text>
         )}
@@ -62,11 +64,13 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
     justifyContent: 'center',
     padding: 24,
     gap: 12,
   },
   title: {
+    color: colors.text,
     fontSize: 28,
     fontWeight: '700',
     textAlign: 'center',
@@ -74,16 +78,18 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    color: colors.text,
     borderRadius: 10,
     padding: 14,
     fontSize: 16,
   },
   error: {
-    color: '#dc2626',
+    color: colors.danger,
   },
   button: {
-    backgroundColor: '#1d4ed8',
+    backgroundColor: colors.accent,
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
@@ -93,7 +99,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.onAccent,
     fontWeight: '600',
     fontSize: 16,
   },

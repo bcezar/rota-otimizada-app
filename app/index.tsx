@@ -14,5 +14,5 @@ export default function Index() {
     );
   }
 
-  return <Redirect href={user ? '/home' : '/login'} />;
+  return <Redirect href={user ? '/navegacao' : '/login'} />;
 }

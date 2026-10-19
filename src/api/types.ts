@@ -57,3 +57,51 @@ export interface StopLimitExceededDetail {
   limit: number;
   is_pro: boolean;
 }
+
+export interface BillingAccountUser {
+  id: string;
+  email: string;
+  name: string | null;
+  is_pro: boolean;
+  is_exclusive: boolean;
+  exclusive_until: string | null;
+}
+
+export interface BillingAccountResponse {
+  user: BillingAccountUser;
+  subscription: Record<string, unknown> | null;
+  payments: Record<string, unknown>[];
+}
+
+export interface CheckoutResponse {
+  payment_url?: string;
+  ok?: boolean;
+  coupon_applied?: boolean;
+}
+
+export interface ContactResponse {
+  ok: boolean;
+}
+
+export type ApiDestinationMode = 'return_to_origin' | 'custom' | 'none';
+export type ApiNavigationApp = 'ask_always' | 'google_maps' | 'waze' | 'apple_maps';
+export type ApiDistanceUnit = 'km' | 'mi';
+export type ApiVehicleType = 'car' | 'truck' | 'motorcycle' | 'bicycle';
+
+export interface UserPreferencesResponse {
+  default_origin: string | null;
+  default_destination: string | null;
+  destination_mode: ApiDestinationMode;
+  navigation_app: ApiNavigationApp;
+  distance_unit: ApiDistanceUnit;
+  vehicle_type: ApiVehicleType;
+}
+
+export interface UpdatePreferencesRequest {
+  default_origin?: string | null;
+  default_destination?: string | null;
+  destination_mode?: ApiDestinationMode;
+  navigation_app?: ApiNavigationApp;
+  distance_unit?: ApiDistanceUnit;
+  vehicle_type?: ApiVehicleType;
+}

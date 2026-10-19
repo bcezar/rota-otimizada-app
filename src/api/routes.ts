@@ -36,6 +36,8 @@ export function optimizeRoute(
   token?: string | null,
   origin?: string,
   destination?: string,
+  fixedFirst?: string | null,
+  fixedLast?: string | null,
 ): Promise<RouteResponse> {
   return apiFetch<RouteResponse>('/api/v1/routes/optimize', {
     method: 'POST',
@@ -43,6 +45,8 @@ export function optimizeRoute(
       addresses,
       ...(origin ? { origin } : {}),
       ...(destination ? { destination } : {}),
+      ...(fixedFirst ? { fixed_first: fixedFirst } : {}),
+      ...(fixedLast ? { fixed_last: fixedLast } : {}),
     },
     token,
   });
