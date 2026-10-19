@@ -22,6 +22,7 @@ interface PersistedState {
 interface StopsContextValue {
   stops: Stop[];
   addStop: (address: string) => void;
+  addStops: (items: { address: string; description: string }[], mode: 'add' | 'replace') => void;
   removeStop: (id: string) => void;
   updateStopDescription: (id: string, description: string) => void;
   clearAll: () => void;
@@ -110,6 +111,14 @@ export function StopsProvider({ children }: { children: ReactNode }) {
     setStops((prev) => [...prev, { id: String(nextId), address, description: '' }]);
   }
 
+  function addStops(items: { address: string; description: string }[], mode: 'add' | 'replace') {
+    const newStops: Stop[] = items.map((item) => {
+      nextId += 1;
+      return { id: String(nextId), address: item.address, description: item.description };
+    });
+    setStops((prev) => (mode === 'replace' ? newStops : [...prev, ...newStops]));
+  }
+
   function removeStop(id: string) {
     const removed = stops.find((stop) => stop.id === id);
     setStops((prev) => prev.filter((stop) => stop.id !== id));
@@ -154,6 +163,7 @@ export function StopsProvider({ children }: { children: ReactNode }) {
       value={{
         stops,
         addStop,
+        addStops,
         removeStop,
         updateStopDescription,
         clearAll,

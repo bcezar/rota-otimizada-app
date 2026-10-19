@@ -31,7 +31,8 @@
         {
           "locationWhenInUsePermission": "Usamos sua localização para centralizar o mapa ao escolher um endereço."
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true
