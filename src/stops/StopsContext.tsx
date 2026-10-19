@@ -5,6 +5,8 @@ import type { Coordinates, RouteResponse } from '../api/types';
 
 const STORAGE_KEY = 'stops';
 
+export type DestinationMode = 'return_to_origin' | 'custom' | 'none';
+
 export interface Stop {
   id: string;
   address: string;
@@ -15,6 +17,7 @@ interface PersistedState {
   stops: Stop[];
   origin: string;
   destination: string;
+  destinationMode: DestinationMode;
   fixedFirst: string | null;
   fixedLast: string | null;
 }
@@ -30,6 +33,8 @@ interface StopsContextValue {
   setOrigin: (value: string) => void;
   destination: string;
   setDestination: (value: string) => void;
+  destinationMode: DestinationMode;
+  setDestinationMode: (mode: DestinationMode) => void;
   fixedFirst: string | null;
   toggleFixedFirst: (address: string) => void;
   fixedLast: string | null;
@@ -55,6 +60,7 @@ function parsePersisted(raw: string): PersistedState {
       })),
       origin: '',
       destination: '',
+      destinationMode: 'none',
       fixedFirst: null,
       fixedLast: null,
     };
@@ -63,6 +69,7 @@ function parsePersisted(raw: string): PersistedState {
     stops: (parsed.stops ?? []).map((stop: Stop) => ({ ...stop, description: stop.description ?? '' })),
     origin: parsed.origin ?? '',
     destination: parsed.destination ?? '',
+    destinationMode: parsed.destinationMode ?? 'none',
     fixedFirst: parsed.fixedFirst ?? null,
     fixedLast: parsed.fixedLast ?? null,
   };
@@ -72,6 +79,7 @@ export function StopsProvider({ children }: { children: ReactNode }) {
   const [stops, setStops] = useState<Stop[]>([]);
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
+  const [destinationMode, setDestinationModeState] = useState<DestinationMode>('none');
   const [fixedFirst, setFixedFirst] = useState<string | null>(null);
   const [fixedLast, setFixedLast] = useState<string | null>(null);
   // Não persistido — só serve de bias para o autocomplete durante a sessão
@@ -90,6 +98,7 @@ export function StopsProvider({ children }: { children: ReactNode }) {
           setStops(parsed.stops);
           setOrigin(parsed.origin);
           setDestination(parsed.destination);
+          setDestinationModeState(parsed.destinationMode);
           setFixedFirst(parsed.fixedFirst);
           setFixedLast(parsed.fixedLast);
           nextId = parsed.stops.reduce((max, stop) => Math.max(max, Number(stop.id) || 0), 0);
@@ -102,9 +111,16 @@ export function StopsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hasLoaded.current) return;
-    const state: PersistedState = { stops, origin, destination, fixedFirst, fixedLast };
+    const state: PersistedState = {
+      stops,
+      origin,
+      destination,
+      destinationMode,
+      fixedFirst,
+      fixedLast,
+    };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {});
-  }, [stops, origin, destination, fixedFirst, fixedLast]);
+  }, [stops, origin, destination, destinationMode, fixedFirst, fixedLast]);
 
   function addStop(address: string) {
     nextId += 1;
@@ -142,6 +158,13 @@ export function StopsProvider({ children }: { children: ReactNode }) {
     setFixedFirst((prev) => (prev === address ? null : prev));
   }
 
+  function setDestinationMode(mode: DestinationMode) {
+    setDestinationModeState(mode);
+    if (mode === 'none') {
+      setDestination('');
+    }
+  }
+
   function setLocationHint(coords: Coordinates) {
     // Replica o site: só fixa a dica uma vez por sessão (primeiro endereço
     // confirmado), para manter o bias estável enquanto o usuário monta a rota.
@@ -152,6 +175,7 @@ export function StopsProvider({ children }: { children: ReactNode }) {
     setStops([]);
     setOrigin('');
     setDestination('');
+    setDestinationModeState('none');
     setFixedFirst(null);
     setFixedLast(null);
     setLocationHintState(null);
@@ -171,6 +195,8 @@ export function StopsProvider({ children }: { children: ReactNode }) {
         setOrigin,
         destination,
         setDestination,
+        destinationMode,
+        setDestinationMode,
         fixedFirst,
         toggleFixedFirst,
         fixedLast,

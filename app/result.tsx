@@ -164,7 +164,7 @@ export default function Result() {
         </Pressable>
       </View>
 
-      <Pressable style={styles.button} onPress={() => router.replace('/home')}>
+      <Pressable style={styles.button} onPress={() => router.replace('/otimizar')}>
         <Text style={styles.buttonText}>Voltar</Text>
       </Pressable>
     </View>

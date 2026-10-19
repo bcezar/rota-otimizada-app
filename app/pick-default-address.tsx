@@ -14,11 +14,23 @@ import {
 import * as routesApi from '../src/api/routes';
 import { useDebouncedValue } from '../src/hooks/useDebouncedValue';
 import { usePreferences } from '../src/preferences/PreferencesContext';
+import { useStops } from '../src/stops/StopsContext';
 import { colors } from '../src/theme/colors';
 
 export default function PickDefaultAddress() {
-  const { target } = useLocalSearchParams<{ target: 'origin' | 'destination' }>();
-  const { setDefaultOrigin, setDefaultDestination, setDestinationMode } = usePreferences();
+  const { target, scope } = useLocalSearchParams<{
+    target: 'origin' | 'destination';
+    scope?: 'preferences' | 'stops';
+  }>();
+  const effectiveScope = scope ?? 'preferences';
+  const preferences = usePreferences();
+  const stopsContext = useStops();
+  const setOriginValue =
+    effectiveScope === 'stops' ? stopsContext.setOrigin : preferences.setDefaultOrigin;
+  const setDestinationValue =
+    effectiveScope === 'stops' ? stopsContext.setDestination : preferences.setDefaultDestination;
+  const setDestinationMode =
+    effectiveScope === 'stops' ? stopsContext.setDestinationMode : preferences.setDestinationMode;
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLocating, setIsLocating] = useState(false);
@@ -47,9 +59,9 @@ export default function PickDefaultAddress() {
 
   function commit(address: string) {
     if (target === 'origin') {
-      setDefaultOrigin(address);
+      setOriginValue(address);
     } else {
-      setDefaultDestination(address);
+      setDestinationValue(address);
       setDestinationMode('custom');
     }
     router.back();
@@ -57,7 +69,7 @@ export default function PickDefaultAddress() {
 
   function handleClear() {
     if (target === 'origin') {
-      setDefaultOrigin('');
+      setOriginValue('');
     } else {
       setDestinationMode('none');
     }

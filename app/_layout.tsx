@@ -47,6 +47,14 @@ export default function RootLayout() {
                 name="edit-client"
                 options={{ presentation: 'modal', headerShown: false }}
               />
+              <Stack.Screen
+                name="add-stops-batch"
+                options={{ presentation: 'modal', headerShown: false }}
+              />
+              <Stack.Screen
+                name="pick-saved-address"
+                options={{ presentation: 'modal', headerShown: false }}
+              />
             </Stack>
             <StatusBar style="light" />
           </AddressBookProvider>
