@@ -1,12 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -24,8 +24,6 @@ export default function Otimizar() {
   const { token } = useAuth();
   const {
     stops,
-    removeStop,
-    updateStopDescription,
     origin,
     setOrigin,
     destination,
@@ -33,9 +31,7 @@ export default function Otimizar() {
     destinationMode,
     setDestinationMode,
     fixedFirst,
-    toggleFixedFirst,
     fixedLast,
-    toggleFixedLast,
     setLastResult,
   } = useStops();
   const preferences = usePreferences();
@@ -102,68 +98,58 @@ export default function Otimizar() {
     <View style={styles.container}>
       <Text style={styles.title}>Otimizar rota</Text>
 
-      <SettingsRow
-        icon="navigate-outline"
-        label="Ponto de Partida"
-        value={origin || 'Nenhum selecionado'}
-        onPress={() =>
-          router.push({
-            pathname: '/pick-default-address',
-            params: { target: 'origin', scope: 'stops' },
-          })
-        }
-      />
-      <SettingsRow
-        icon="flag-outline"
-        label="Destino Final"
-        value={destinationLabel}
-        onPress={() => setDestinationSheetVisible(true)}
-      />
-      <SettingsRow
-        icon="add-circle-outline"
-        label="Adicionar parada"
-        onPress={() => router.push('/add-stop')}
-      />
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <SettingsRow
+          icon="navigate-outline"
+          label="Ponto de Partida"
+          value={origin || 'Nenhum selecionado'}
+          onPress={() =>
+            router.push({
+              pathname: '/pick-default-address',
+              params: { target: 'origin', scope: 'stops' },
+            })
+          }
+        />
+        <SettingsRow
+          icon="flag-outline"
+          label="Destino Final"
+          value={destinationLabel}
+          onPress={() => setDestinationSheetVisible(true)}
+        />
+        <SettingsRow
+          icon="add-circle-outline"
+          label="Adicionar parada"
+          onPress={() => router.push('/add-stop')}
+        />
 
-      <FlatList
-        style={styles.list}
-        data={stops}
-        keyExtractor={(stop) => stop.id}
-        ListEmptyComponent={
+        <View style={styles.stopsHeader}>
+          <Text style={styles.stopsHeaderText}>Paradas adicionadas</Text>
+          <View style={styles.stopsCountBadge}>
+            <Text style={styles.stopsCountText}>{stops.length}</Text>
+          </View>
+        </View>
+
+        {stops.length === 0 ? (
           <Text style={styles.emptyText}>Adicione ao menos 2 paradas para otimizar.</Text>
-        }
-        renderItem={({ item }) => {
-          const isFirst = fixedFirst === item.address;
-          const isLast = fixedLast === item.address;
-          return (
-            <View style={styles.stopRow}>
+        ) : (
+          stops.map((item) => (
+            <Pressable
+              key={item.id}
+              style={styles.stopCard}
+              onPress={() => router.push({ pathname: '/stop-detail', params: { id: item.id } })}
+            >
+              <Ionicons name="location" size={20} color={colors.accent} />
               <View style={styles.stopMain}>
-                <Text style={styles.stopAddress}>{item.address}</Text>
-                <TextInput
-                  style={styles.descriptionInput}
-                  placeholder="Anotação (opcional)"
-                  placeholderTextColor={colors.textMuted}
-                  value={item.description}
-                  onChangeText={(text) => updateStopDescription(item.id, text)}
-                />
+                <Text style={styles.stopAddress}>{item.placeName || item.address}</Text>
+                {item.placeName ? (
+                  <Text style={styles.stopSubtitle}>{item.address}</Text>
+                ) : null}
               </View>
-              <Pressable onPress={() => toggleFixedFirst(item.address)}>
-                <Text style={[styles.stopActionText, isFirst && styles.stopActionActiveFirst]}>
-                  1º
-                </Text>
-              </Pressable>
-              <Pressable onPress={() => toggleFixedLast(item.address)}>
-                <Text style={[styles.stopActionText, isLast && styles.stopActionActiveLast]}>
-                  Últ.
-                </Text>
-              </Pressable>
-              <Pressable onPress={() => removeStop(item.id)}>
-                <Text style={styles.removeText}>Remover</Text>
-              </Pressable>
-            </View>
-          );
-        }}
-      />
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </Pressable>
+          ))
+        )}
+      </ScrollView>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -214,58 +200,76 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 8,
   },
-  list: {
+  scroll: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 12,
+  },
+  stopsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  stopsHeaderText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  stopsCountBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  stopsCountText: {
+    color: colors.onAccent,
+    fontSize: 11,
+    fontWeight: '700',
   },
   emptyText: {
     color: colors.textMuted,
     textAlign: 'center',
-    marginTop: 24,
+    marginVertical: 24,
   },
-  stopRow: {
+  stopCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
   },
   stopMain: {
     flex: 1,
-    marginRight: 12,
-    gap: 4,
+    gap: 2,
   },
   stopAddress: {
-    flex: 1,
     color: colors.text,
-  },
-  descriptionInput: {
-    fontSize: 12,
-    color: colors.textMuted,
-    padding: 0,
-  },
-  stopActionText: {
-    fontSize: 12,
-    color: colors.textMuted,
     fontWeight: '600',
   },
-  stopActionActiveFirst: {
-    color: colors.accent,
-  },
-  stopActionActiveLast: {
-    color: '#a78bfa',
-  },
-  removeText: {
-    color: colors.danger,
+  stopSubtitle: {
+    color: colors.textMuted,
+    fontSize: 12,
   },
   error: {
     color: colors.danger,
+    marginTop: 8,
   },
   optimizeButton: {
     backgroundColor: colors.accent,
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
+    marginTop: 12,
   },
   buttonDisabled: {
     opacity: 0.5,

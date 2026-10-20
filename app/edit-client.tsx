@@ -3,12 +3,20 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useAddressBook } from '../src/addressBook/AddressBookContext';
+import { useStops } from '../src/stops/StopsContext';
 import { colors } from '../src/theme/colors';
 
 export default function EditClient() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, source } = useLocalSearchParams<{
+    id: string;
+    source?: 'stop' | 'address';
+  }>();
+  const isStop = source === 'stop';
   const { addresses, updateAddress } = useAddressBook();
-  const current = addresses.find((item) => item.id === id);
+  const { stops, updateStop } = useStops();
+  const current = isStop
+    ? stops.find((item) => item.id === id)
+    : addresses.find((item) => item.id === id);
 
   const [name, setName] = useState(current?.client?.name ?? '');
   const [email, setEmail] = useState(current?.client?.email ?? '');
@@ -16,12 +24,15 @@ export default function EditClient() {
 
   function handleSave() {
     if (!id) return;
-    updateAddress(id, {
-      client:
-        name.trim() || email.trim() || phone.trim()
-          ? { name: name.trim(), email: email.trim(), phone: phone.trim() }
-          : null,
-    });
+    const client =
+      name.trim() || email.trim() || phone.trim()
+        ? { name: name.trim(), email: email.trim(), phone: phone.trim() }
+        : null;
+    if (isStop) {
+      updateStop(id, { client });
+    } else {
+      updateAddress(id, { client });
+    }
     router.back();
   }
 

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
+import type { Client } from '../addressBook/AddressBookContext';
 import type { Coordinates, RouteResponse } from '../api/types';
 
 const STORAGE_KEY = 'stops';
@@ -11,6 +12,9 @@ export interface Stop {
   id: string;
   address: string;
   description: string;
+  placeName: string;
+  client: Client | null;
+  tags: string[];
 }
 
 interface PersistedState {
@@ -28,6 +32,7 @@ interface StopsContextValue {
   addStops: (items: { address: string; description: string }[], mode: 'add' | 'replace') => void;
   removeStop: (id: string) => void;
   updateStopDescription: (id: string, description: string) => void;
+  updateStop: (id: string, patch: Partial<Omit<Stop, 'id'>>) => void;
   clearAll: () => void;
   origin: string;
   setOrigin: (value: string) => void;
@@ -49,15 +54,23 @@ const StopsContext = createContext<StopsContextValue | null>(null);
 
 let nextId = 0;
 
+function normalizeStop(stop: Partial<Stop> & { id: string; address: string }): Stop {
+  return {
+    id: stop.id,
+    address: stop.address,
+    description: stop.description ?? '',
+    placeName: stop.placeName ?? '',
+    client: stop.client ?? null,
+    tags: stop.tags ?? [],
+  };
+}
+
 function parsePersisted(raw: string): PersistedState {
   const parsed = JSON.parse(raw);
   if (Array.isArray(parsed)) {
     // formato antigo: só o array de stops, sem description/origin/destination
     return {
-      stops: parsed.map((stop: { id: string; address: string }) => ({
-        ...stop,
-        description: '',
-      })),
+      stops: parsed.map(normalizeStop),
       origin: '',
       destination: '',
       destinationMode: 'none',
@@ -66,7 +79,7 @@ function parsePersisted(raw: string): PersistedState {
     };
   }
   return {
-    stops: (parsed.stops ?? []).map((stop: Stop) => ({ ...stop, description: stop.description ?? '' })),
+    stops: (parsed.stops ?? []).map(normalizeStop),
     origin: parsed.origin ?? '',
     destination: parsed.destination ?? '',
     destinationMode: parsed.destinationMode ?? 'none',
@@ -124,13 +137,17 @@ export function StopsProvider({ children }: { children: ReactNode }) {
 
   function addStop(address: string) {
     nextId += 1;
-    setStops((prev) => [...prev, { id: String(nextId), address, description: '' }]);
+    setStops((prev) => [...prev, normalizeStop({ id: String(nextId), address })]);
   }
 
   function addStops(items: { address: string; description: string }[], mode: 'add' | 'replace') {
     const newStops: Stop[] = items.map((item) => {
       nextId += 1;
-      return { id: String(nextId), address: item.address, description: item.description };
+      return normalizeStop({
+        id: String(nextId),
+        address: item.address,
+        description: item.description,
+      });
     });
     setStops((prev) => (mode === 'replace' ? newStops : [...prev, ...newStops]));
   }
@@ -146,6 +163,10 @@ export function StopsProvider({ children }: { children: ReactNode }) {
 
   function updateStopDescription(id: string, description: string) {
     setStops((prev) => prev.map((stop) => (stop.id === id ? { ...stop, description } : stop)));
+  }
+
+  function updateStop(id: string, patch: Partial<Omit<Stop, 'id'>>) {
+    setStops((prev) => prev.map((stop) => (stop.id === id ? { ...stop, ...patch } : stop)));
   }
 
   function toggleFixedFirst(address: string) {
@@ -190,6 +211,7 @@ export function StopsProvider({ children }: { children: ReactNode }) {
         addStops,
         removeStop,
         updateStopDescription,
+        updateStop,
         clearAll,
         origin,
         setOrigin,

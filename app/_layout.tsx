@@ -55,6 +55,10 @@ export default function RootLayout() {
                 name="pick-saved-address"
                 options={{ presentation: 'modal', headerShown: false }}
               />
+              <Stack.Screen
+                name="stop-detail"
+                options={{ presentation: 'modal', headerShown: false }}
+              />
             </Stack>
             <StatusBar style="light" />
           </AddressBookProvider>

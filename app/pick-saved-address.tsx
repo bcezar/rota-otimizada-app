@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { useAddressBook, type SavedAddress } from '../src/addressBook/AddressBookContext';
 import { useStops } from '../src/stops/StopsContext';
@@ -7,21 +7,37 @@ import { colors } from '../src/theme/colors';
 
 export default function PickSavedAddress() {
   const { addresses } = useAddressBook();
-  const { addStop } = useStops();
+  const { stops, addStop, removeStop } = useStops();
 
-  function handleSelect(item: SavedAddress) {
-    addStop(item.address);
-    router.back();
+  function isInRoute(address: string): boolean {
+    return stops.some((stop) => stop.address === address);
+  }
+
+  function handleToggle(item: SavedAddress) {
+    if (isInRoute(item.address)) {
+      const stop = stops.find((s) => s.address === item.address);
+      if (stop) removeStop(stop.id);
+    } else {
+      addStop(item.address);
+    }
   }
 
   function renderItem({ item }: { item: SavedAddress }) {
     const title = item.placeName || item.address;
     const showSubtitle = !!item.placeName;
     return (
-      <Pressable style={styles.row} onPress={() => handleSelect(item)}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        {showSubtitle ? <Text style={styles.rowSubtitle}>{item.address}</Text> : null}
-      </Pressable>
+      <View style={styles.row}>
+        <View style={styles.rowTexts}>
+          <Text style={styles.rowTitle}>{title}</Text>
+          {showSubtitle ? <Text style={styles.rowSubtitle}>{item.address}</Text> : null}
+        </View>
+        <Switch
+          value={isInRoute(item.address)}
+          onValueChange={() => handleToggle(item)}
+          trackColor={{ true: colors.accent, false: colors.border }}
+          thumbColor={colors.onAccent}
+        />
+      </View>
     );
   }
 
@@ -68,9 +84,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    gap: 10,
+  },
+  rowTexts: {
+    flex: 1,
   },
   rowTitle: {
     color: colors.text,
