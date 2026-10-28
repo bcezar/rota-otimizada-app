@@ -5,6 +5,7 @@ import { colors } from '../theme/colors';
 interface Option {
   label: string;
   onPress: () => void;
+  disabled?: boolean;
 }
 
 interface Props {
@@ -28,10 +29,13 @@ export function OptionSheet({ visible, onClose, title, options }: Props) {
           {options.map((option) => (
             <Pressable
               key={option.label}
-              style={styles.option}
+              style={[styles.option, option.disabled && styles.optionDisabled]}
+              disabled={option.disabled}
               onPress={() => handleSelect(option.onPress)}
             >
-              <Text style={styles.optionText}>{option.label}</Text>
+              <Text style={[styles.optionText, option.disabled && styles.optionTextDisabled]}>
+                {option.label}
+              </Text>
             </Pressable>
           ))}
           <Pressable style={styles.cancelButton} onPress={onClose}>
@@ -70,6 +74,12 @@ const styles = StyleSheet.create({
   optionText: {
     color: colors.text,
     fontSize: 15,
+  },
+  optionDisabled: {
+    opacity: 0.55,
+  },
+  optionTextDisabled: {
+    color: colors.textMuted,
   },
   cancelButton: {
     marginTop: 12,

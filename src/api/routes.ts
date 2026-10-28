@@ -4,6 +4,7 @@ import type {
   Coordinates,
   GeocodeResponse,
   ReverseGeocodeResponse,
+  RoutePolylineResponse,
   RouteResponse,
 } from './types';
 
@@ -31,6 +32,13 @@ export function reverseGeocode(lat: number, lng: number): Promise<ReverseGeocode
   return apiFetch<ReverseGeocodeResponse>(`/api/v1/reverse?lat=${lat}&lng=${lng}`);
 }
 
+export function getRoutePolyline(points: Coordinates[]): Promise<RoutePolylineResponse> {
+  return apiFetch<RoutePolylineResponse>('/api/v1/routes/polyline', {
+    method: 'POST',
+    body: { points },
+  });
+}
+
 export function optimizeRoute(
   addresses: string[],
   token?: string | null,
@@ -38,6 +46,8 @@ export function optimizeRoute(
   destination?: string,
   fixedFirst?: string | null,
   fixedLast?: string | null,
+  stopIds?: string[],
+  preserveOrder = false,
 ): Promise<RouteResponse> {
   return apiFetch<RouteResponse>('/api/v1/routes/optimize', {
     method: 'POST',
@@ -47,6 +57,8 @@ export function optimizeRoute(
       ...(destination ? { destination } : {}),
       ...(fixedFirst ? { fixed_first: fixedFirst } : {}),
       ...(fixedLast ? { fixed_last: fixedLast } : {}),
+      ...(stopIds ? { stop_ids: stopIds } : {}),
+      ...(preserveOrder ? { preserve_order: true } : {}),
     },
     token,
   });

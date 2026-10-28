@@ -7,6 +7,7 @@ import type { Coordinates, RouteResponse } from '../api/types';
 const STORAGE_KEY = 'stops';
 
 export type DestinationMode = 'return_to_origin' | 'custom' | 'none';
+export type RouteStopStatus = 'visited' | 'failed';
 
 export interface Stop {
   id: string;
@@ -48,6 +49,14 @@ interface StopsContextValue {
   setLocationHint: (coords: Coordinates) => void;
   lastResult: RouteResponse | null;
   setLastResult: (result: RouteResponse | null) => void;
+  isNavigationStarted: boolean;
+  activeStopOrder: number | null;
+  routeStopStatuses: Record<number, RouteStopStatus>;
+  startNavigation: () => void;
+  restartNavigation: () => void;
+  selectRouteStop: (order: number) => void;
+  markRouteStop: (order: number, status: RouteStopStatus) => void;
+  resetNavigation: () => void;
 }
 
 const StopsContext = createContext<StopsContextValue | null>(null);
@@ -100,6 +109,9 @@ export function StopsProvider({ children }: { children: ReactNode }) {
   // confirmado em qualquer campo: parada, origem, destino ou mapa).
   const [locationHint, setLocationHintState] = useState<Coordinates | null>(null);
   const [lastResult, setLastResult] = useState<RouteResponse | null>(null);
+  const [isNavigationStarted, setIsNavigationStarted] = useState(false);
+  const [activeStopOrder, setActiveStopOrder] = useState<number | null>(null);
+  const [routeStopStatuses, setRouteStopStatuses] = useState<Record<number, RouteStopStatus>>({});
   const hasLoaded = useRef(false);
 
   useEffect(() => {
@@ -201,6 +213,53 @@ export function StopsProvider({ children }: { children: ReactNode }) {
     setFixedLast(null);
     setLocationHintState(null);
     setLastResult(null);
+    resetNavigation();
+  }
+
+  function resetNavigation() {
+    setIsNavigationStarted(false);
+    setActiveStopOrder(null);
+    setRouteStopStatuses({});
+  }
+
+  function startNavigation() {
+    const firstStop = lastResult?.optimized_route
+      .slice()
+      .sort((a, b) => a.order - b.order)[0];
+    setRouteStopStatuses({});
+    setActiveStopOrder(firstStop?.order ?? null);
+    setIsNavigationStarted(true);
+  }
+
+  function restartNavigation() {
+    if (!isNavigationStarted) {
+      resetNavigation();
+      return;
+    }
+    const firstStop = lastResult?.optimized_route
+      .slice()
+      .sort((a, b) => a.order - b.order)[0];
+    setRouteStopStatuses({});
+    setActiveStopOrder(firstStop?.order ?? null);
+  }
+
+  function selectRouteStop(order: number) {
+    if (!isNavigationStarted || !lastResult?.optimized_route.some((stop) => stop.order === order)) {
+      return;
+    }
+    setActiveStopOrder(order);
+  }
+
+  function markRouteStop(order: number, status: RouteStopStatus) {
+    const nextStatuses = { ...routeStopStatuses, [order]: status };
+    setRouteStopStatuses(nextStatuses);
+    const orderedStops = lastResult?.optimized_route.slice().sort((a, b) => a.order - b.order) ?? [];
+    const currentIndex = orderedStops.findIndex((stop) => stop.order === order);
+    const nextStop = [
+      ...orderedStops.slice(currentIndex + 1),
+      ...orderedStops.slice(0, currentIndex + 1),
+    ].find((stop) => !nextStatuses[stop.order]);
+    setActiveStopOrder(nextStop?.order ?? null);
   }
 
   return (
@@ -227,6 +286,14 @@ export function StopsProvider({ children }: { children: ReactNode }) {
         setLocationHint,
         lastResult,
         setLastResult,
+        isNavigationStarted,
+        activeStopOrder,
+        routeStopStatuses,
+        startNavigation,
+        restartNavigation,
+        selectRouteStop,
+        markRouteStop,
+        resetNavigation,
       }}
     >
       {children}

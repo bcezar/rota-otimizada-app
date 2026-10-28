@@ -31,6 +31,7 @@ export interface ReverseGeocodeResponse {
 
 export interface RouteStop {
   order: number;
+  stop_id?: string | null;
   original_address: string;
   coordinates: Coordinates;
   leg_distance_km: number | null;
@@ -50,6 +51,11 @@ export interface RouteResponse {
   maps_url: string | null;
   origin: OriginInfo | null;
   destination: OriginInfo | null;
+}
+
+export interface RoutePolylineResponse {
+  path: Coordinates[];
+  encoded_polyline: string;
 }
 
 export interface StopLimitExceededDetail {

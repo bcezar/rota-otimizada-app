@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AddressBookProvider } from '../src/addressBook/AddressBookContext';
 import { AuthProvider } from '../src/auth/AuthContext';
@@ -8,10 +9,11 @@ import { StopsProvider } from '../src/stops/StopsContext';
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <StopsProvider>
-        <PreferencesProvider>
-          <AddressBookProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <StopsProvider>
+          <PreferencesProvider>
+            <AddressBookProvider>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen
                 name="add-stop"
@@ -59,11 +61,16 @@ export default function RootLayout() {
                 name="stop-detail"
                 options={{ presentation: 'modal', headerShown: false }}
               />
+              <Stack.Screen
+                name="reorder-route"
+                options={{ presentation: 'modal', headerShown: false }}
+              />
             </Stack>
             <StatusBar style="light" />
-          </AddressBookProvider>
-        </PreferencesProvider>
-      </StopsProvider>
-    </AuthProvider>
+            </AddressBookProvider>
+          </PreferencesProvider>
+        </StopsProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -33,6 +33,7 @@ export default function Otimizar() {
     fixedFirst,
     fixedLast,
     setLastResult,
+    resetNavigation,
   } = useStops();
   const preferences = usePreferences();
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -79,9 +80,11 @@ export default function Otimizar() {
         resolvedDestination?.trim() || undefined,
         fixedFirst,
         fixedLast,
+        stops.map((stop) => stop.id),
       );
+      resetNavigation();
       setLastResult(result);
-      router.push('/result');
+      router.navigate('/navegacao');
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {
         const detail = e.detail as StopLimitExceededDetail;

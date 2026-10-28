@@ -15,7 +15,7 @@ import { useStops } from '../src/stops/StopsContext';
 import { colors } from '../src/theme/colors';
 
 export default function StopDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, source } = useLocalSearchParams<{ id: string; source?: string }>();
   const { stops, updateStop, removeStop } = useStops();
   const current = stops.find((item) => item.id === id);
   const [newTag, setNewTag] = useState('');
@@ -141,9 +141,11 @@ export default function StopDetail() {
         </View>
       </View>
 
-      <Pressable style={styles.deleteButton} onPress={handleRemoveStop}>
-        <Text style={styles.deleteButtonText}>Remover parada</Text>
-      </Pressable>
+      {source !== 'navigation' ? (
+        <Pressable style={styles.deleteButton} onPress={handleRemoveStop}>
+          <Text style={styles.deleteButtonText}>Remover parada</Text>
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
 }
