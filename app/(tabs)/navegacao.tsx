@@ -20,7 +20,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import MapView, { Marker, Polyline, type Region } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAddressBook } from '../../src/addressBook/AddressBookContext';
@@ -76,7 +76,8 @@ export default function Navegacao() {
   const { token } = useAuth();
   const { addresses, addAddress, updateAddress } = useAddressBook();
   const { navigationApp } = usePreferences();
-  const [initialRegion, setInitialRegion] = useState<Region | null>(null);
+  const [currentLocationRegion, setCurrentLocationRegion] = useState<Region | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const [polyline, setPolyline] = useState<Coordinates[] | null>(null);
   const [isPolylineLoading, setIsPolylineLoading] = useState(false);
   const [polylineError, setPolylineError] = useState(false);
@@ -103,6 +104,7 @@ export default function Navegacao() {
   const activeLocalStop = activeStop ? stops.find((stop) => stop.id === stopIdsByOrder[activeStop.order]) : null;
   const routePanelHeight = routePanelHeightForLevel(routePanelLevel, availableHeight);
   const routePanelHeightAnimation = useRef(new Animated.Value(routePanelHeight)).current;
+  const initialRegion = FALLBACK_REGION;
   const routePanelGestureStartHeight = useRef(routePanelHeight);
   const compactPanelStop = activeStop ??
     orderedStops.find((stop) => !routeStopStatuses[stop.order]) ??
@@ -205,40 +207,41 @@ export default function Navegacao() {
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setInitialRegion(FALLBACK_REGION);
-          return;
+        if (status !== 'granted') return;
+
+        function updateLocationRegion(latitude: number, longitude: number) {
+          setCurrentLocationRegion({
+            latitude,
+            longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          });
         }
 
         const lastKnown = await Location.getLastKnownPositionAsync({});
         if (lastKnown && !cancelled) {
-          setInitialRegion({
-            latitude: lastKnown.coords.latitude,
-            longitude: lastKnown.coords.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          });
+          updateLocationRegion(lastKnown.coords.latitude, lastKnown.coords.longitude);
         }
 
         const position = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
         if (!cancelled) {
-          setInitialRegion({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          });
+          updateLocationRegion(position.coords.latitude, position.coords.longitude);
         }
       } catch {
-        if (!cancelled) setInitialRegion((current) => current ?? FALLBACK_REGION);
+        // The map is already visible at FALLBACK_REGION; location is an enhancement.
       }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!mapReady || !currentLocationRegion || lastResult) return;
+    mapRef.current?.animateToRegion(currentLocationRegion, 450);
+  }, [mapReady, currentLocationRegion, lastResult]);
 
   useEffect(() => {
     let cancelled = false;
@@ -282,7 +285,7 @@ export default function Navegacao() {
   }, [lastResult]);
 
   useEffect(() => {
-    if (!lastResult || !mapRef.current || !initialRegion || routePanelLevel === 96) return;
+    if (!lastResult || !mapRef.current || !mapReady || routePanelLevel === 96) return;
     const coords = [
       ...orderedStops.map((stop) => ({
         latitude: stop.coordinates.lat,
@@ -312,10 +315,10 @@ export default function Navegacao() {
         animated: true,
       });
     }
-  }, [lastResult, initialRegion, orderedStops, routePanelLevel, routePanelHeight, availableHeight]);
+  }, [lastResult, mapReady, orderedStops, routePanelLevel, routePanelHeight, availableHeight]);
 
   useEffect(() => {
-    if (!isNavigationStarted || activeStopOrder == null || !mapRef.current || routePanelLevel === 96) return;
+    if (!isNavigationStarted || activeStopOrder == null || !mapRef.current || !mapReady || routePanelLevel === 96) return;
     const stop = orderedStops.find((item) => item.order === activeStopOrder);
     if (!stop) return;
     const latitudeDelta = 0.018;
@@ -328,7 +331,7 @@ export default function Navegacao() {
       },
       500,
     );
-  }, [activeStopOrder, isNavigationStarted, orderedStops, routePanelLevel, routePanelHeight, availableHeight]);
+  }, [activeStopOrder, isNavigationStarted, orderedStops, mapReady, routePanelLevel, routePanelHeight, availableHeight]);
 
   useEffect(() => {
     if (!isNavigationStarted || activeStopOrder == null) return;
@@ -537,20 +540,18 @@ export default function Navegacao() {
     }
   }
 
-  if (!initialRegion) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={colors.accent} />
-      </View>
-    );
-  }
-
   return (
     <View
       style={styles.container}
       onLayout={(event) => setAvailableHeight(event.nativeEvent.layout.height)}
     >
-      <MapView ref={mapRef} style={styles.map} initialRegion={initialRegion}>
+      <MapView
+        ref={mapRef}
+        provider={PROVIDER_GOOGLE}
+        style={styles.map}
+        initialRegion={initialRegion}
+        onMapReady={() => setMapReady(true)}
+      >
         {polyline?.length ? (
           <Polyline
             coordinates={polyline.map((point) => ({
@@ -938,7 +939,6 @@ export default function Navegacao() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  loadingContainer: { alignItems: 'center', justifyContent: 'center' },
   map: StyleSheet.absoluteFill,
   pinBadge: {
     minWidth: 30,

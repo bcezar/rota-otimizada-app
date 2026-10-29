@@ -20,12 +20,29 @@ import { useStops, type DestinationMode, type Stop } from '../src/stops/StopsCon
 import { colors } from '../src/theme/colors';
 
 function routeStops(route: SavedRoute): Stop[] {
-  const inputs = route.inputs;
+  const inputs = route.inputs as SavedRouteInputs & { addresses?: unknown[] };
   const details = inputs.stop_details ?? [];
-  return inputs.addresses.map((address, index) => {
+  const addresses = (Array.isArray(inputs.addresses) ? inputs.addresses : [])
+    .map((entry) => {
+      if (typeof entry === 'string') return entry;
+      if (entry && typeof entry === 'object' && 'address' in entry) {
+        const address = (entry as { address?: unknown }).address;
+        return typeof address === 'string' ? address : '';
+      }
+      return '';
+    })
+    .filter(Boolean);
+  const legacyResultStops = (route.result?.optimized_route ?? [])
+    .slice()
+    .sort((a, b) => a.order - b.order);
+  const sourceAddresses = addresses.length
+    ? addresses
+    : legacyResultStops.map((stop) => stop.original_address).filter(Boolean);
+
+  return sourceAddresses.map((address, index) => {
     const detail = details[index];
     return {
-      id: detail?.id ?? inputs.stop_ids?.[index] ?? `${route.code}-${index + 1}`,
+      id: detail?.id ?? inputs.stop_ids?.[index] ?? `saved-${route.code}-${index + 1}`,
       address: detail?.address ?? address,
       description: detail?.description ?? '',
       placeName: detail?.place_name ?? '',
@@ -103,9 +120,37 @@ export default function SavedRoutes() {
       });
       router.replace('/navegacao');
     } catch (cause) {
+      const apiError = cause instanceof ApiError ? cause : null;
+      const detail = apiError?.detail;
+      console.error('[saved-routes] Falha ao usar rota salva', {
+        routeCode: route.code,
+        stopCount: stops.length,
+        endpoint: '/api/v1/routes/optimize',
+        status: apiError?.status ?? null,
+        message: apiError?.message ?? (cause instanceof Error ? cause.message : 'Erro desconhecido'),
+        detail: apiError?.detail ?? null,
+      });
+
+      if (
+        apiError?.status === 403 &&
+        typeof detail === 'object' &&
+        detail !== null &&
+        'code' in detail &&
+        detail.code === 'STOP_LIMIT_EXCEEDED'
+      ) {
+        const limit = 'limit' in detail && typeof detail.limit === 'number' ? detail.limit : null;
+        Alert.alert(
+          'Limite de paradas excedido',
+          limit
+            ? `Esta rota tem ${stops.length} paradas, mas seu plano permite até ${limit}. Edite a rota ou altere seu plano para usá-la.`
+            : 'Esta rota tem mais paradas do que o permitido pelo seu plano.',
+        );
+        return;
+      }
+
       Alert.alert(
         'Não foi possível usar a rota',
-        cause instanceof ApiError ? cause.message : 'Verifique sua conexão e tente novamente.',
+        apiError ? `${apiError.message} (HTTP ${apiError.status})` : 'Verifique sua conexão e tente novamente.',
       );
     } finally {
       setLoadingCode(null);
@@ -129,7 +174,7 @@ export default function SavedRoutes() {
   }
 
   function renderRoute({ item }: { item: SavedRoute }) {
-    const stopCount = item.result?.optimized_route?.length ?? item.inputs.addresses.length;
+    const stopCount = item.result?.optimized_route?.length ?? routeStops(item).length;
     const distance = item.result?.total_distance_km;
     const date = item.created_at
       ? new Date(item.created_at.replace(' ', 'T') + (item.created_at.endsWith('Z') ? '' : 'Z')).toLocaleDateString('pt-BR')

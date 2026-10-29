@@ -1,8 +1,8 @@
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import MapView, { type Region } from 'react-native-maps';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 
 import * as routesApi from '../src/api/routes';
 import { useStops } from '../src/stops/StopsContext';
@@ -25,7 +25,8 @@ const TOAST_DURATION_MS = 1800;
 
 export default function PickLocation() {
   const { stops, addStop, setLocationHint } = useStops();
-  const [initialRegion, setInitialRegion] = useState<Region | null>(null);
+  const [currentLocationRegion, setCurrentLocationRegion] = useState<Region | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const [address, setAddress] = useState('');
   const [addressCoords, setAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,47 +37,51 @@ export default function PickLocation() {
   const requestId = useRef(0);
   const lastQueriedCoords = useRef<{ lat: number; lng: number } | null>(null);
   const addedToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mapRef = useRef<MapView | null>(null);
+  const userMovedMap = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setInitialRegion(FALLBACK_REGION);
-          return;
-        }
+        if (status !== 'granted') return;
 
-        // Última posição em cache é instantânea — usamos como aproximação
-        // imediata pra evitar tela em branco enquanto o GPS de precisão
-        // (mais lento, sobretudo no simulador) ainda não respondeu.
-        const lastKnown = await Location.getLastKnownPositionAsync({});
-        if (lastKnown) {
-          setInitialRegion({
-            latitude: lastKnown.coords.latitude,
-            longitude: lastKnown.coords.longitude,
+        function updateLocationRegion(latitude: number, longitude: number) {
+          setCurrentLocationRegion({
+            latitude,
+            longitude,
             latitudeDelta: 0.01,
             longitudeDelta: 0.01,
           });
         }
 
+        const lastKnown = await Location.getLastKnownPositionAsync({});
+        if (lastKnown && !cancelled) {
+          updateLocationRegion(lastKnown.coords.latitude, lastKnown.coords.longitude);
+        }
+
         const position = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
-        setInitialRegion({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
+        if (!cancelled) {
+          updateLocationRegion(position.coords.latitude, position.coords.longitude);
+        }
       } catch {
-        setInitialRegion((current) => current ?? FALLBACK_REGION);
+        // The map is already visible at FALLBACK_REGION; location is an enhancement.
       }
     })();
 
     return () => {
+      cancelled = true;
       if (addedToastTimer.current) clearTimeout(addedToastTimer.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!mapReady || !currentLocationRegion || userMovedMap.current) return;
+    mapRef.current?.animateToRegion(currentLocationRegion, 450);
+  }, [mapReady, currentLocationRegion]);
 
   function handleRegionChangeComplete(region: Region) {
     const last = lastQueriedCoords.current;
@@ -139,19 +144,15 @@ export default function PickLocation() {
     setDuplicateToast(false);
   }
 
-  if (!initialRegion) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <MapView
+        ref={mapRef}
+        provider={PROVIDER_GOOGLE}
         style={styles.map}
-        initialRegion={initialRegion}
+        initialRegion={FALLBACK_REGION}
+        onMapReady={() => setMapReady(true)}
+        onPanDrag={() => { userMovedMap.current = true; }}
         onRegionChangeComplete={handleRegionChangeComplete}
       />
       <View pointerEvents="none" style={styles.pin}>
@@ -203,10 +204,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   map: {
     flex: 1,

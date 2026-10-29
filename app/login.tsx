@@ -9,24 +9,24 @@ import {
   View,
 } from 'react-native';
 
-import { ApiError } from '../src/api/client';
 import { useAuth } from '../src/auth/AuthContext';
 import { colors } from '../src/theme/colors';
 
 export default function Login() {
-  const { login, continueAsGuest } = useAuth();
+  const { requestLoginLink, provisionalDevLogin, continueAsGuest } = useAuth();
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [linkSent, setLinkSent] = useState(false);
 
   async function handleSubmit() {
     setError('');
     setIsSubmitting(true);
     try {
-      await login(email.trim());
-      router.replace('/navegacao');
+      await requestLoginLink(email.trim());
+      setLinkSent(true);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível entrar. Tente novamente.');
+      setError(e instanceof Error ? e.message : 'Não foi possível enviar o link. Tente novamente.');
     } finally {
       setIsSubmitting(false);
     }
@@ -37,12 +37,25 @@ export default function Login() {
     router.replace('/navegacao');
   }
 
+  async function handleProvisionalLogin() {
+    setError('');
+    setIsSubmitting(true);
+    try {
+      await provisionalDevLogin(email.trim());
+      router.replace('/navegacao');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Login provisório indisponível.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Rota Otimizada</Text>
       <Text style={styles.subtitle}>
-        Entre ou crie uma conta para otimizações ilimitadas. Sem conta, você tem
-        5 otimizações por dia, com até 5 paradas por rota.
+        Entre ou crie uma conta usando o link de acesso enviado ao seu e-mail. Sem conta,
+        você tem 5 otimizações por dia, com até 5 paradas por rota.
       </Text>
       <TextInput
         style={styles.input}
@@ -52,18 +65,27 @@ export default function Login() {
         autoCorrect={false}
         keyboardType="email-address"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(value) => {
+          setEmail(value);
+          setLinkSent(false);
+        }}
       />
+      {linkSent ? (
+        <Text style={styles.success}>
+          Enviamos um link de acesso para {email.trim()}. Abra-o no aparelho onde o app está instalado.
+          Confira também a caixa de spam.
+        </Text>
+      ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <Pressable
-        style={[styles.button, !email && styles.buttonDisabled]}
-        disabled={!email || isSubmitting}
+        style={[styles.button, (!email.trim() || isSubmitting) && styles.buttonDisabled]}
+        disabled={!email.trim() || isSubmitting}
         onPress={handleSubmit}
       >
         {isSubmitting ? (
           <ActivityIndicator color={colors.onAccent} />
         ) : (
-          <Text style={styles.buttonText}>Entrar</Text>
+          <Text style={styles.buttonText}>{linkSent ? 'Enviar link novamente' : 'Enviar link de acesso'}</Text>
         )}
       </Pressable>
       <Pressable
@@ -73,6 +95,15 @@ export default function Login() {
       >
         <Text style={styles.guestButtonText}>Continuar sem conta</Text>
       </Pressable>
+      {__DEV__ ? (
+        <Pressable
+          style={[styles.devButton, (!email.trim() || isSubmitting) && styles.buttonDisabled]}
+          disabled={!email.trim() || isSubmitting}
+          onPress={() => void handleProvisionalLogin()}
+        >
+          <Text style={styles.devButtonText}>Login provisório (desenvolvimento)</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -111,6 +142,15 @@ const styles = StyleSheet.create({
   error: {
     color: colors.danger,
   },
+  success: {
+    color: colors.text,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: 14,
+    lineHeight: 20,
+  },
   button: {
     backgroundColor: colors.accent,
     borderRadius: 10,
@@ -135,4 +175,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   guestButtonText: { color: colors.text, fontWeight: '600', fontSize: 15 },
+  devButton: {
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  devButtonText: { color: colors.accent, fontWeight: '600', fontSize: 14 },
 });

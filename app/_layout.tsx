@@ -28,6 +28,7 @@ export default function RootLayout() {
                 options={{ presentation: 'modal', headerShown: false }}
               />
               <Stack.Screen name="faq" options={{ presentation: 'modal', headerShown: false }} />
+              <Stack.Screen name="delete-account" options={{ presentation: 'modal', headerShown: false }} />
               <Stack.Screen
                 name="contact"
                 options={{ presentation: 'modal', headerShown: false }}

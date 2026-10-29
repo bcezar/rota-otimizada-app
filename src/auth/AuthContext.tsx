@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import * as authApi from '../api/auth';
-import type { UserResponse } from '../api/types';
+import type { LoginResponse, UserResponse } from '../api/types';
 
 const TOKEN_KEY = 'auth_token';
 const GUEST_MODE_KEY = 'guest_mode';
@@ -13,7 +13,9 @@ interface AuthContextValue {
   isGuest: boolean;
   token: string | null;
   user: UserResponse | null;
-  login: (email: string) => Promise<void>;
+  requestLoginLink: (email: string) => Promise<void>;
+  provisionalDevLogin: (email: string) => Promise<void>;
+  completeLogin: (session: LoginResponse) => Promise<void>;
   continueAsGuest: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -51,12 +53,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  async function login(email: string) {
-    const { token: newToken, user: newUser } = await authApi.login(email);
-    await SecureStore.setItemAsync(TOKEN_KEY, newToken);
+  async function requestLoginLink(email: string) {
+    await authApi.requestMagicLink(email);
+  }
+
+  async function provisionalDevLogin(email: string) {
+    const session = await authApi.provisionalDevLogin(email);
+    await completeLogin(session);
+  }
+
+  async function completeLogin(session: LoginResponse) {
+    await SecureStore.setItemAsync(TOKEN_KEY, session.token);
     await AsyncStorage.removeItem(GUEST_MODE_KEY);
-    setToken(newToken);
-    setUser(newUser);
+    setToken(session.token);
+    setUser(session.user);
     setIsGuest(false);
   }
 
@@ -74,7 +84,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ isLoading, isGuest, token, user, login, continueAsGuest, logout }}>
+    <AuthContext.Provider value={{
+      isLoading,
+      isGuest,
+      token,
+      user,
+      requestLoginLink,
+      provisionalDevLogin,
+      completeLogin,
+      continueAsGuest,
+      logout,
+    }}>
       {children}
     </AuthContext.Provider>
   );

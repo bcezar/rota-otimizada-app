@@ -25,6 +25,11 @@ const FAQ_ITEMS = [
     answer:
       'Na aba Conta, toque em "Upgrade de plano" e siga o fluxo de pagamento via PIX ou cartão.',
   },
+  {
+    question: 'O que acontece com meu plano Pro se eu excluir minha conta?',
+    answer:
+      'A renovação será cancelada. Quando houver um período Pro pago ainda não utilizado, solicitaremos o reembolso proporcional; se a contratação online tiver ocorrido nos últimos 7 dias, o reembolso será integral quando aplicável. O acesso Pro termina após o processamento do reembolso. Antes de confirmar a exclusão, mostraremos o valor estimado. A aplicação do prazo legal a renovações pode depender do caso.',
+  },
 ];
 
 export default function Faq() {

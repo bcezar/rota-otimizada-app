@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -70,26 +69,6 @@ export default function Conta() {
   async function handleLogout() {
     await logout();
     router.replace('/login');
-  }
-
-  function handleDeleteAccount() {
-    Alert.alert(
-      'Excluir conta?',
-      'Essa ação não pode ser desfeita.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Ainda não disponível',
-              'A exclusão de conta ainda não está disponível. Entre em contato com o suporte para solicitar a remoção dos seus dados.',
-            );
-          },
-        },
-      ],
-    );
   }
 
   return (
@@ -230,7 +209,7 @@ export default function Conta() {
       {/* Seção 4 — Excluir conta */}
       {user ? (
         <View style={styles.section}>
-          <Pressable style={styles.deleteButton} onPress={handleDeleteAccount}>
+          <Pressable style={styles.deleteButton} onPress={() => router.push('/delete-account')}>
             <Text style={styles.deleteButtonText}>Excluir conta</Text>
           </Pressable>
         </View>

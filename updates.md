@@ -17,23 +17,24 @@ ok.
 | **Endereços** | Livro de endereços completo (lista em cards, busca com autocomplete, detalhe com nome do local, notas, cliente, tags). Visitante mantém dados locais; usuários autenticados sincronizam com o backend e acessam a lista em outros dispositivos. Exclusões usam tombstones para sincronização offline. |
 | **Otimizar** | Tela principal de montagem de rota: Ponto de Partida, Destino Final, Adicionar parada, lista de paradas em cards com contador, botão Otimizar. Validado. |
 | **Importar** | Importação CSV/XLS com preview e template. Validado. |
-| **Conta** | Perfil, plano, upgrade (Asaas PIX/cartão/cupom), preferências sincronizadas com o backend, FAQ, fale conosco, sobre, excluir conta (aviso), sair. Validado. |
+| **Conta** | Perfil, plano, upgrade (Asaas PIX/cartão/cupom), preferências sincronizadas com o backend, FAQ, fale conosco, sobre, fluxo de exclusão e sair. |
 | Fluxo de adicionar parada | Busca por texto, Mapa, Lote, Lista de endereços (com switch), Importar. Validado. |
 | Detalhe da parada | Mesmas seções do endereço salvo (nome, notas, cliente, tags), aplicadas à parada da rota. Validado. |
 | Resultado | Lista ordenada, visitada/pulada, Google Maps, compartilhar, copiar. Validado. |
-| Login | Magic link legado (`/auth/login`), sessão em SecureStore. Validado. |
+| Login | Magic link por e-mail com retorno móvel por deep link e troca de código temporário; callback ainda depende de development build para validar. Login provisório sem magic link disponível apenas em desenvolvimento e bloqueado por padrão no backend. |
 
 ## Decisões importantes
 
-- **Dev workflow:** tudo é testado no **Expo Go** (iOS Simulator). Isso
-  impede bibliotecas com código nativo customizado, como reconhecimento de
-  voz. Ver "Pendências".
+- **Dev workflow atual:** app testado no **Expo Go** (iOS Simulator). Expo Go
+  não valida por completo callbacks de deep link com scheme estável nem splash
+  nativo; usar development/preview build para esses fluxos e assets.
 - **Backend local** (`../rota-otimizada`): rodar com
   `.venv/bin/uvicorn app.main:app --reload --port 8000`. O `.env` local aponta
   para o banco Turso de produção.
 - **Dados locais vs. backend:**
   - Preferências: sincronizadas com o backend (`GET`/`PUT /api/v1/users/preferences`).
-  - Lista de paradas, livro de endereços: só AsyncStorage (sem endpoint no backend).
+  - Lista de paradas: AsyncStorage.
+  - Livro de endereços: backend por conta autenticada e cache local para uso offline.
 - **Ordem da tab Navegação:** mapa, polyline, pins, painel da rota e modo de
   acompanhamento implementados; confirmar o fluxo no simulador antes de marcar
   como validado.
@@ -60,8 +61,29 @@ ok.
    colapsada no simulador. Deixar este item anotado e retomar depois.
 
 **Para depois:**
-- Planejar a exclusão de conta separadamente. É uma área sensível; não iniciar
-  implementação antes de uma discussão própria de escopo e fluxo.
+- **Excluir conta — implementado com reembolso; revisão jurídica pendente:**
+  app e web mostram o valor estimado, enviam link de confirmação ao e-mail e
+  cancelam renovações antes de remover a conta. Dentro de 7 dias da contratação
+  online, solicitam reembolso integral quando aplicável; depois desse prazo,
+  calculam o valor proporcional ao tempo pago restante. A remoção aguarda a
+  confirmação do estorno assíncrono do Asaas; estados de erro mantêm a conta e
+  permitem nova tentativa. O fluxo remove dados de rotas/endereço/sessões e
+  anonimiza feedback, contato e identificadores de cupom. O FAQ do app e do site
+  foi atualizado. O fluxo fica desativado por padrão (`ACCOUNT_DELETION_ENABLED=false`)
+  para impedir exclusões acidentais enquanto o backend local usa o Turso de
+  produção; ativar apenas em ambiente isolado de teste. **Pendente:** revisar a regra para renovações, retenção legal
+  de dados de cobrança e texto final com os insumos jurídicos do usuário; ajustar
+  o FAQ e os termos após essa análise.
+- **Splash e ícone — implementados:** símbolo de rota baseado na referência,
+  ícone claro de 1024×1024, camadas foreground/monochrome para Android,
+  favicon e splash nativo com fundo claro pelo plugin `expo-splash-screen`.
+  Validar a aparência final em builds instaladas de iOS e Android; Expo Go não
+  reproduz o splash nativo do app.
+- **Tema claro/escuro — futuro:** incluir nas Configurações uma escolha entre
+  tema claro e escuro. Aplicar a escolha globalmente ao app; persistir localmente
+  para visitantes e sincronizar com as preferências do backend para contas
+  autenticadas. Considerar mapas, status bar, modais e demais superfícies para
+  manter contraste e legibilidade nos dois temas.
 
 **Adiadas:**
 - Reconhecimento de voz no campo de endereço. Alternativa simples: usar a
@@ -77,7 +99,13 @@ ok.
 ## Problemas conhecidos
 
 - **Mapa lento no simulador** ao carregar tiles. Foi aceito como custo do
-  simulador (já observado no seletor de mapa). Deve melhorar em dispositivo real.
+  simulador (também observado no seletor). As telas Navegação e Mapa para
+  adicionar parada agora montam o mapa imediatamente na região padrão e
+  centralizam na localização assim que ela chega; no seletor, se o usuário
+  começar a mover o mapa, a localização não rouba o foco. Ainda falta validar
+  visualmente no simulador.
+  No iOS, o app usa o MapKit/Apple Maps padrão; a chave Google da web/backend
+  não está configurada como chave do SDK nativo de mapas no app.
 - **Dependências:** `npm install` costuma exigir `--legacy-peer-deps` por
   conflito de peer entre `react-dom` e `react` (SDK 57). Ao instalar pacotes
   Expo, usar `npx expo install` e, se falhar, o workaround acima.
