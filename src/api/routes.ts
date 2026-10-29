@@ -1,5 +1,7 @@
 import { apiFetch } from './client';
+import { getOrCreateAnonymousId } from './guestIdentity';
 import type {
+  AnonymousOptimizationUsage,
   AutocompleteResponse,
   Coordinates,
   GeocodeResponse,
@@ -39,7 +41,12 @@ export function getRoutePolyline(points: Coordinates[]): Promise<RoutePolylineRe
   });
 }
 
-export function optimizeRoute(
+export async function getAnonymousOptimizationUsage(): Promise<AnonymousOptimizationUsage> {
+  const anonymousId = await getOrCreateAnonymousId();
+  return apiFetch<AnonymousOptimizationUsage>('/api/v1/guest/usage', { anonymousId });
+}
+
+export async function optimizeRoute(
   addresses: string[],
   token?: string | null,
   origin?: string,
@@ -49,6 +56,7 @@ export function optimizeRoute(
   stopIds?: string[],
   preserveOrder = false,
 ): Promise<RouteResponse> {
+  const anonymousId = token ? undefined : await getOrCreateAnonymousId();
   return apiFetch<RouteResponse>('/api/v1/routes/optimize', {
     method: 'POST',
     body: {
@@ -61,5 +69,6 @@ export function optimizeRoute(
       ...(preserveOrder ? { preserve_order: true } : {}),
     },
     token,
+    anonymousId,
   });
 }

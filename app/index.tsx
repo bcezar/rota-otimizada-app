@@ -4,7 +4,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../src/auth/AuthContext';
 
 export default function Index() {
-  const { isLoading, user } = useAuth();
+  const { isLoading, user, isGuest } = useAuth();
 
   if (isLoading) {
     return (
@@ -14,5 +14,5 @@ export default function Index() {
     );
   }
 
-  return <Redirect href={user ? '/navegacao' : '/login'} />;
+  return <Redirect href={user || isGuest ? '/navegacao' : '/login'} />;
 }

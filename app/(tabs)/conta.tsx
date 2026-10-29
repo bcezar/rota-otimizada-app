@@ -57,7 +57,7 @@ export default function Conta() {
   const [destinationSheetVisible, setDestinationSheetVisible] = useState(false);
 
   const planLabel = user?.is_exclusive ? 'Exclusive' : user?.is_pro ? 'Pro' : 'Gratuito';
-  const canUpgrade = !user?.is_pro && !user?.is_exclusive;
+  const canUpgrade = !!user && !user.is_pro && !user.is_exclusive;
   const avatarInitial = (user?.name || user?.email || '?').charAt(0).toUpperCase();
 
   const destinationLabel =
@@ -96,32 +96,47 @@ export default function Conta() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Seção 1 — Perfil / Plano */}
       <View style={styles.section}>
-        <View style={styles.profileRow}>
-          {user?.picture_url ? (
-            <Image source={{ uri: user.picture_url }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarFallback}>
-              <Text style={styles.avatarFallbackText}>{avatarInitial}</Text>
+        {user ? (
+          <>
+            <View style={styles.profileRow}>
+              {user.picture_url ? (
+                <Image source={{ uri: user.picture_url }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarFallbackText}>{avatarInitial}</Text>
+                </View>
+              )}
+              <View style={styles.profileInfo}>
+                <Text style={styles.name}>{user.name || user.email}</Text>
+                <Text style={styles.email}>{user.email}</Text>
+              </View>
             </View>
-          )}
-          <View style={styles.profileInfo}>
-            <Text style={styles.name}>{user?.name || user?.email}</Text>
-            <Text style={styles.email}>{user?.email}</Text>
-          </View>
-        </View>
 
-        <View style={styles.divider} />
+            <View style={styles.divider} />
 
-        <View style={styles.planRow}>
-          <Text style={styles.planLabel}>Plano atual</Text>
-          <Text style={styles.planValue}>{planLabel}</Text>
-        </View>
+            <View style={styles.planRow}>
+              <Text style={styles.planLabel}>Plano atual</Text>
+              <Text style={styles.planValue}>{planLabel}</Text>
+            </View>
 
-        {canUpgrade ? (
-          <Pressable style={styles.upgradeButton} onPress={() => router.push('/upgrade')}>
-            <Text style={styles.upgradeButtonText}>Upgrade de plano</Text>
-          </Pressable>
-        ) : null}
+            {canUpgrade ? (
+              <Pressable style={styles.upgradeButton} onPress={() => router.push('/upgrade')}>
+                <Text style={styles.upgradeButtonText}>Upgrade de plano</Text>
+              </Pressable>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Text style={styles.sectionTitle}>Modo visitante</Text>
+            <Text style={styles.sectionNote}>
+              Você tem 5 otimizações por dia, com até 5 paradas por rota. Entre ou crie uma
+              conta gratuita para otimizações ilimitadas e acesso às rotas salvas.
+            </Text>
+            <Pressable style={styles.upgradeButton} onPress={() => router.push('/login')}>
+              <Text style={styles.upgradeButtonText}>Entrar ou criar conta</Text>
+            </Pressable>
+          </>
+        )}
       </View>
 
       {/* Seção 2 — Preferências */}
@@ -213,15 +228,19 @@ export default function Conta() {
       </View>
 
       {/* Seção 4 — Excluir conta */}
-      <View style={styles.section}>
-        <Pressable style={styles.deleteButton} onPress={handleDeleteAccount}>
-          <Text style={styles.deleteButtonText}>Excluir conta</Text>
-        </Pressable>
-      </View>
+      {user ? (
+        <View style={styles.section}>
+          <Pressable style={styles.deleteButton} onPress={handleDeleteAccount}>
+            <Text style={styles.deleteButtonText}>Excluir conta</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
-      <Pressable style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Sair</Text>
-      </Pressable>
+      {user ? (
+        <Pressable style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutButtonText}>Sair</Text>
+        </Pressable>
+      ) : null}
 
       <OptionSheet
         visible={destinationSheetVisible}

@@ -14,7 +14,7 @@ ok.
 | Aba / tela | Estado |
 |---|---|
 | **Navegação** | Mapa com localização atual, polyline da rota e pins numerados; painel com três níveis (15%, 50% e nível chamado 96%, com altura visual de 90%), arrastável pelo puxador com transição animada. No nível compacto mostra a parada ativa/próxima com ações; nos demais, lista rolável. Selecionar uma parada durante a navegação centraliza o mapa na parte visível; selecionar com o painel no nível 96% mantém esse nível. Menu inclui reiniciar, inverter, ajustar ordem e cancelar a rota. Implementado em 2026-10-28, ainda precisa validação visual no simulador. |
-| **Endereços** | Livro de endereços completo (lista em cards, busca com autocomplete, detalhe com nome do local, notas, cliente, tags). Validado. Só local (AsyncStorage). |
+| **Endereços** | Livro de endereços completo (lista em cards, busca com autocomplete, detalhe com nome do local, notas, cliente, tags). Visitante mantém dados locais; usuários autenticados sincronizam com o backend e acessam a lista em outros dispositivos. Exclusões usam tombstones para sincronização offline. |
 | **Otimizar** | Tela principal de montagem de rota: Ponto de Partida, Destino Final, Adicionar parada, lista de paradas em cards com contador, botão Otimizar. Validado. |
 | **Importar** | Importação CSV/XLS com preview e template. Validado. |
 | **Conta** | Perfil, plano, upgrade (Asaas PIX/cartão/cupom), preferências sincronizadas com o backend, FAQ, fale conosco, sobre, excluir conta (aviso), sair. Validado. |
@@ -37,6 +37,20 @@ ok.
 - **Ordem da tab Navegação:** mapa, polyline, pins, painel da rota e modo de
   acompanhamento implementados; confirmar o fluxo no simulador antes de marcar
   como validado.
+- **Acesso sem conta:** visitante tem até 5 otimizações bem-sucedidas por dia,
+  com janela UTC. Regra aplicada no app, backend e site. A cota usa um ID
+  anônimo persistido por instalação/navegador e é contada no backend (Turso;
+  fallback em memória). Conta gratuita não tem cota diária e mantém limite de
+  5 paradas por rota; Pro permite 50. Apagar os dados do app/navegador ou
+  reinstalar gera outro ID anônimo.
+- **Livro de endereços:** CRUD por usuário no backend e sincronização do app
+  implementados. Primeiro login mescla o cache local com a lista da conta por
+  ID; vence a versão com `updatedAt` mais recente. Endereços repetidos não são
+  deduplicados. O app mantém cache offline e sincroniza tombstones de exclusão.
+- **Rotas salvas:** integração móvel com os endpoints existentes do backend.
+  Salvar pelo menu da rota, listar/excluir na tela Rotas salvas e reutilizar uma
+  rota recalculando o trajeto. Inclui metadados das paradas. A tabela existente
+  `saved_routes` é reutilizada; validar o fluxo no simulador.
 
 ## Pendências
 
@@ -46,9 +60,6 @@ ok.
    colapsada no simulador. Deixar este item anotado e retomar depois.
 
 **Para depois:**
-- Persistir o livro de endereços no backend Python (atualmente os dados ficam
-  apenas no AsyncStorage do app). O usuário autorizou trabalhar na pasta irmã do
-  backend quando esta tarefa for retomada.
 - Planejar a exclusão de conta separadamente. É uma área sensível; não iniciar
   implementação antes de uma discussão própria de escopo e fluxo.
 
@@ -58,7 +69,6 @@ ok.
   nativo específico. Reconhecimento embutido no app pode ser avaliado depois;
   bibliotecas nativas requerem development build em vez do Expo Go.
 - Exportar paradas para CSV (existe no site, não portado).
-- Rotas salvas: plano futuro para reusar rotas com menos passos.
 - Notificações push e Live Activities: plano futuro.
 - Biometria para acesso: boa possibilidade futura, ainda sem plano definido.
 - i18n/idiomas: fora do escopo por enquanto.

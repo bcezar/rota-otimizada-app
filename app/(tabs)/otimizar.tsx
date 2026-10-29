@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,7 +12,10 @@ import {
 
 import { ApiError } from '../../src/api/client';
 import * as routesApi from '../../src/api/routes';
-import type { StopLimitExceededDetail } from '../../src/api/types';
+import type {
+  AnonymousOptimizationUsage,
+  StopLimitExceededDetail,
+} from '../../src/api/types';
 import { useAuth } from '../../src/auth/AuthContext';
 import { OptionSheet } from '../../src/components/OptionSheet';
 import { SettingsRow } from '../../src/components/SettingsRow';
@@ -38,7 +41,24 @@ export default function Otimizar() {
   const preferences = usePreferences();
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [error, setError] = useState('');
+  const [guestUsage, setGuestUsage] = useState<AnonymousOptimizationUsage | null>(null);
   const [destinationSheetVisible, setDestinationSheetVisible] = useState(false);
+
+  useFocusEffect(useCallback(() => {
+    if (token) {
+      setGuestUsage(null);
+      return undefined;
+    }
+    let cancelled = false;
+    routesApi.getAnonymousOptimizationUsage()
+      .then((usage) => {
+        if (!cancelled) setGuestUsage(usage);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [token]));
 
   // Pré-preenche a partir das Preferências salvas em Conta, só na primeira
   // vez (StopsContext ainda zerado) — depois disso o usuário edita aqui
@@ -89,6 +109,22 @@ export default function Otimizar() {
       if (e instanceof ApiError && e.status === 403) {
         const detail = e.detail as StopLimitExceededDetail;
         setError(`Limite de ${detail.limit} paradas atingido para o seu plano.`);
+      } else if (
+        e instanceof ApiError &&
+        e.status === 429 &&
+        typeof e.detail === 'object' &&
+        e.detail !== null &&
+        'code' in e.detail &&
+        e.detail.code === 'DAILY_OPTIMIZATION_LIMIT'
+      ) {
+        const detail = e.detail as AnonymousOptimizationUsage & { code: string };
+        setGuestUsage({
+          limit: detail.limit,
+          used: detail.used,
+          remaining: detail.remaining,
+          resets_at: detail.resets_at,
+        });
+        setError('Você usou as 5 otimizações gratuitas de hoje. Entre ou crie uma conta gratuita para continuar.');
       } else {
         setError(e instanceof ApiError ? e.message : 'Não foi possível otimizar a rota.');
       }
@@ -155,10 +191,20 @@ export default function Otimizar() {
       </ScrollView>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {!token && guestUsage ? (
+        <Text style={styles.guestUsage}>
+          Visitante · {guestUsage.remaining} de {guestUsage.limit} otimizações restantes hoje
+        </Text>
+      ) : null}
+      {!token && guestUsage?.remaining === 0 ? (
+        <Pressable onPress={() => router.push('/login')}>
+          <Text style={styles.signupLink}>Entrar ou criar conta gratuita</Text>
+        </Pressable>
+      ) : null}
 
       <Pressable
-        style={[styles.optimizeButton, stops.length < 2 && styles.buttonDisabled]}
-        disabled={stops.length < 2 || isOptimizing}
+        style={[styles.optimizeButton, (stops.length < 2 || (!token && guestUsage?.remaining === 0)) && styles.buttonDisabled]}
+        disabled={stops.length < 2 || isOptimizing || (!token && guestUsage?.remaining === 0)}
         onPress={handleOptimize}
       >
         {isOptimizing ? (
@@ -267,6 +313,8 @@ const styles = StyleSheet.create({
     color: colors.danger,
     marginTop: 8,
   },
+  guestUsage: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
+  signupLink: { color: colors.accent, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   optimizeButton: {
     backgroundColor: colors.accent,
     borderRadius: 10,

@@ -8,6 +8,7 @@ import {
   Animated,
   Alert,
   Linking,
+  Modal,
   PanResponder,
   Platform,
   Pressable,
@@ -15,6 +16,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -23,7 +25,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAddressBook } from '../../src/addressBook/AddressBookContext';
 import * as routesApi from '../../src/api/routes';
-import type { Coordinates } from '../../src/api/types';
+import * as savedRoutesApi from '../../src/api/savedRoutes';
+import type { Coordinates, SavedRouteStopDetails } from '../../src/api/types';
 import { useAuth } from '../../src/auth/AuthContext';
 import { OptionSheet } from '../../src/components/OptionSheet';
 import { usePreferences } from '../../src/preferences/PreferencesContext';
@@ -53,6 +56,11 @@ export default function Navegacao() {
   const [availableHeight, setAvailableHeight] = useState(windowHeight);
   const {
     stops,
+    origin,
+    destination,
+    destinationMode,
+    fixedFirst,
+    fixedLast,
     lastResult,
     removeStop,
     setLastResult,
@@ -76,6 +84,9 @@ export default function Navegacao() {
   const [deleteVisible, setDeleteVisible] = useState(false);
   const [navigationAppVisible, setNavigationAppVisible] = useState(false);
   const [routeActionsVisible, setRouteActionsVisible] = useState(false);
+  const [saveRouteVisible, setSaveRouteVisible] = useState(false);
+  const [saveRouteName, setSaveRouteName] = useState('');
+  const [isSavingRoute, setIsSavingRoute] = useState(false);
   const [routePanelLevel, setRoutePanelLevel] = useState<RoutePanelLevel>(50);
   const mapRef = useRef<MapView | null>(null);
   const stopListRef = useRef<ScrollView | null>(null);
@@ -454,6 +465,8 @@ export default function Navegacao() {
 
   const routeActionOptions = [
     { label: 'Editar rota', onPress: () => router.navigate('/otimizar') },
+    { label: 'Salvar rota', onPress: openSaveRoute },
+    { label: 'Rotas salvas', onPress: () => router.push('/saved-routes') },
     { label: 'Reiniciar rota', onPress: restartNavigation },
     { label: 'Inverter rota', onPress: confirmRouteReverse },
     { label: 'Ajustar ordem', onPress: () => router.push('/reorder-route') },
@@ -464,6 +477,65 @@ export default function Navegacao() {
       ? [{ label: 'Abrir rota completa no Google Maps', onPress: () => void Linking.openURL(lastResult.maps_url!) }]
       : []),
   ];
+
+  function openSaveRoute() {
+    if (!lastResult) return;
+    if (!token) {
+      Alert.alert(
+        'Entre para salvar a rota',
+        'As rotas salvas ficam na sua conta e podem ser acessadas em outros dispositivos.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Entrar', onPress: () => router.push('/login') },
+        ],
+      );
+      return;
+    }
+    setSaveRouteName(`Rota ${new Date().toLocaleDateString('pt-BR')}`);
+    setSaveRouteVisible(true);
+  }
+
+  async function handleSaveRoute() {
+    if (!lastResult || !token || !saveRouteName.trim()) return;
+    setIsSavingRoute(true);
+    try {
+      const stopDetails: SavedRouteStopDetails[] = orderedStops.map((routeStop, index) => {
+        const localStopId = stopIdsByOrder[routeStop.order] ?? routeStop.stop_id ?? `saved-${Date.now()}-${index}`;
+        const localStop = stops.find((stop) => stop.id === localStopId);
+        return {
+          id: localStopId,
+          address: routeStop.original_address,
+          description: localStop?.description ?? '',
+          place_name: localStop?.placeName ?? '',
+          client: localStop?.client ?? null,
+          tags: localStop?.tags ?? [],
+        };
+      });
+      await savedRoutesApi.saveRoute(
+        saveRouteName.trim(),
+        lastResult,
+        {
+          addresses: stopDetails.map((stop) => stop.address),
+          origin: lastResult.origin?.address ?? origin ?? undefined,
+          destination: lastResult.destination?.address ?? destination ?? undefined,
+          fixed_first: fixedFirst ?? undefined,
+          fixed_last: fixedLast ?? undefined,
+          stop_ids: stopDetails.map((stop) => stop.id),
+          preserve_order: false,
+        },
+        stopDetails,
+        destinationMode,
+        token,
+      );
+      setSaveRouteVisible(false);
+      setRouteActionsVisible(false);
+      Alert.alert('Rota salva', 'Você poderá acessá-la em Rotas salvas.');
+    } catch (cause) {
+      Alert.alert('Não foi possível salvar', cause instanceof Error ? cause.message : 'Tente novamente.');
+    } finally {
+      setIsSavingRoute(false);
+    }
+  }
 
   if (!initialRegion) {
     return (
@@ -557,6 +629,13 @@ export default function Navegacao() {
         <Text style={styles.searchPlaceholder}>
           {lastResult ? 'Editar rota' : 'Para onde vamos?'}
         </Text>
+      </Pressable>
+      <Pressable
+        accessibilityLabel="Rotas salvas"
+        style={[styles.savedRoutesButton, { top: insets.top + 10 }]}
+        onPress={() => router.push('/saved-routes')}
+      >
+        <Ionicons name="bookmark-outline" size={20} color={colors.text} />
       </Pressable>
 
       {lastResult ? (
@@ -797,6 +876,44 @@ export default function Navegacao() {
         title="Parada atual"
         options={settingsOptions}
       />
+      <Modal
+        visible={saveRouteVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSaveRouteVisible(false)}
+      >
+        <Pressable style={styles.saveRouteBackdrop} onPress={() => setSaveRouteVisible(false)}>
+          <Pressable style={styles.saveRouteCard} onPress={() => {}}>
+            <Text style={styles.saveRouteTitle}>Salvar rota</Text>
+            <Text style={styles.saveRouteDescription}>Dê um nome para encontrar essa rota depois.</Text>
+            <TextInput
+              autoFocus
+              maxLength={100}
+              style={styles.saveRouteInput}
+              placeholder="Nome da rota"
+              placeholderTextColor={colors.textMuted}
+              value={saveRouteName}
+              onChangeText={setSaveRouteName}
+              returnKeyType="done"
+              onSubmitEditing={() => void handleSaveRoute()}
+            />
+            <Pressable
+              style={[styles.saveRouteButton, (!saveRouteName.trim() || isSavingRoute) && styles.saveRouteButtonDisabled]}
+              disabled={!saveRouteName.trim() || isSavingRoute}
+              onPress={() => void handleSaveRoute()}
+            >
+              {isSavingRoute ? (
+                <ActivityIndicator color={colors.onAccent} />
+              ) : (
+                <Text style={styles.saveRouteButtonText}>Salvar</Text>
+              )}
+            </Pressable>
+            <Pressable style={styles.saveRouteCancel} onPress={() => setSaveRouteVisible(false)}>
+              <Text style={styles.saveRouteCancelText}>Cancelar</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
       <OptionSheet
         visible={deleteVisible}
         onClose={() => setDeleteVisible(false)}
@@ -842,7 +959,7 @@ const styles = StyleSheet.create({
   searchBar: {
     position: 'absolute',
     left: 16,
-    right: 16,
+    right: 72,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -859,6 +976,57 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   searchPlaceholder: { color: colors.textMuted, fontSize: 15 },
+  savedRoutesButton: {
+    position: 'absolute',
+    right: 16,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  saveRouteBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  saveRouteCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    gap: 12,
+  },
+  saveRouteTitle: { color: colors.text, fontSize: 20, fontWeight: '700' },
+  saveRouteDescription: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
+  saveRouteInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    color: colors.text,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+  },
+  saveRouteButton: {
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: 10,
+  },
+  saveRouteButtonDisabled: { opacity: 0.5 },
+  saveRouteButtonText: { color: colors.onAccent, fontSize: 16, fontWeight: '700' },
+  saveRouteCancel: { alignItems: 'center', padding: 10 },
+  saveRouteCancelText: { color: colors.textMuted, fontWeight: '600' },
   routePanel: {
     position: 'absolute',
     left: 0,

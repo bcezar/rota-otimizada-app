@@ -53,6 +53,35 @@ export interface RouteResponse {
   destination: OriginInfo | null;
 }
 
+export interface SavedRouteStopDetails {
+  id: string;
+  address: string;
+  description: string;
+  place_name: string;
+  client: { name: string; email: string; phone: string } | null;
+  tags: string[];
+}
+
+export interface SavedRouteInputs {
+  addresses: string[];
+  origin?: string | null;
+  destination?: string | null;
+  fixed_first?: string | null;
+  fixed_last?: string | null;
+  stop_ids?: string[] | null;
+  preserve_order?: boolean;
+  destination_mode?: ApiDestinationMode;
+  stop_details?: SavedRouteStopDetails[];
+}
+
+export interface SavedRoute {
+  code: string;
+  name: string;
+  result: RouteResponse;
+  inputs: SavedRouteInputs;
+  created_at: string | null;
+}
+
 export interface RoutePolylineResponse {
   path: Coordinates[];
   encoded_polyline: string;
@@ -87,6 +116,13 @@ export interface CheckoutResponse {
 
 export interface ContactResponse {
   ok: boolean;
+}
+
+export interface AnonymousOptimizationUsage {
+  limit: number;
+  used: number;
+  remaining: number;
+  resets_at: string;
 }
 
 export type ApiDestinationMode = 'return_to_origin' | 'custom' | 'none';

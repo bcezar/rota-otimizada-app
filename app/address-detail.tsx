@@ -136,6 +136,10 @@ export default function AddressDetail() {
         </View>
       </View>
 
+      <Pressable style={styles.saveButton} onPress={() => router.back()}>
+        <Text style={styles.saveButtonText}>Salvar</Text>
+      </Pressable>
+
       <Pressable style={styles.deleteButton} onPress={handleRemoveAddress}>
         <Text style={styles.deleteButtonText}>Remover endereço</Text>
       </Pressable>
@@ -161,9 +165,22 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 18,
     fontWeight: '700',
+    flexShrink: 1,
+    marginRight: 8,
   },
   closeText: {
     color: colors.textMuted,
+    fontWeight: '600',
+  },
+  saveButton: {
+    backgroundColor: colors.accent,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: colors.onAccent,
     fontWeight: '600',
   },
   emptyText: {

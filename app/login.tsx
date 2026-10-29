@@ -14,7 +14,7 @@ import { useAuth } from '../src/auth/AuthContext';
 import { colors } from '../src/theme/colors';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, continueAsGuest } = useAuth();
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -32,9 +32,18 @@ export default function Login() {
     }
   }
 
+  async function handleContinueAsGuest() {
+    await continueAsGuest();
+    router.replace('/navegacao');
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Rota Otimizada</Text>
+      <Text style={styles.subtitle}>
+        Entre ou crie uma conta para otimizações ilimitadas. Sem conta, você tem
+        5 otimizações por dia, com até 5 paradas por rota.
+      </Text>
       <TextInput
         style={styles.input}
         placeholder="seu@email.com"
@@ -57,6 +66,13 @@ export default function Login() {
           <Text style={styles.buttonText}>Entrar</Text>
         )}
       </Pressable>
+      <Pressable
+        style={styles.guestButton}
+        disabled={isSubmitting}
+        onPress={() => void handleContinueAsGuest()}
+      >
+        <Text style={styles.guestButtonText}>Continuar sem conta</Text>
+      </Pressable>
     </View>
   );
 }
@@ -75,6 +91,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 24,
+  },
+  subtitle: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 12,
   },
   input: {
     borderWidth: 1,
@@ -103,4 +126,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
+  guestButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  guestButtonText: { color: colors.text, fontWeight: '600', fontSize: 15 },
 });

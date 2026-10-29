@@ -6,7 +6,7 @@ import { useAddressBook, type SavedAddress } from '../../src/addressBook/Address
 import { colors } from '../../src/theme/colors';
 
 export default function Enderecos() {
-  const { addresses } = useAddressBook();
+  const { addresses, syncStatus, retrySync } = useAddressBook();
 
   function openDetail(id: string) {
     router.push({ pathname: '/address-detail', params: { id } });
@@ -48,13 +48,24 @@ export default function Enderecos() {
         </Pressable>
       </View>
 
+      {syncStatus === 'syncing' ? (
+        <Text style={styles.syncHint}>Sincronizando sua lista com a conta…</Text>
+      ) : null}
+      {syncStatus === 'offline' ? (
+        <Pressable onPress={retrySync} style={styles.syncWarning}>
+          <Text style={styles.syncWarningText}>Lista salva neste aparelho. Toque para tentar sincronizar.</Text>
+        </Pressable>
+      ) : null}
+
       <FlatList
         data={addresses}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         renderItem={renderCard}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>Nenhum endereço salvo ainda.</Text>
+          <Text style={styles.emptyText}>
+            {syncStatus === 'loading' ? 'Carregando endereços…' : 'Nenhum endereço salvo ainda.'}
+          </Text>
         }
       />
     </View>
@@ -79,6 +90,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
   },
+  syncHint: { color: colors.textMuted, fontSize: 12, marginBottom: 10 },
+  syncWarning: { marginBottom: 10 },
+  syncWarningText: { color: colors.danger, fontSize: 12 },
   addButton: {
     width: 36,
     height: 36,

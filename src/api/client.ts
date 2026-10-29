@@ -18,12 +18,16 @@ interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
   token?: string | null;
+  anonymousId?: string;
 }
 
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (options.token) {
     headers.Authorization = `Bearer ${options.token}`;
+  }
+  if (options.anonymousId) {
+    headers['X-Anonymous-ID'] = options.anonymousId;
   }
 
   const res = await fetch(`${API_BASE_URL}${path}`, {

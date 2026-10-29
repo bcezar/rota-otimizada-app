@@ -65,6 +65,10 @@ export default function RootLayout() {
                 name="reorder-route"
                 options={{ presentation: 'modal', headerShown: false }}
               />
+              <Stack.Screen
+                name="saved-routes"
+                options={{ presentation: 'modal', headerShown: false }}
+              />
             </Stack>
             <StatusBar style="light" />
             </AddressBookProvider>

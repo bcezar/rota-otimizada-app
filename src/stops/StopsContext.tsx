@@ -41,6 +41,15 @@ interface StopsContextValue {
   setDestination: (value: string) => void;
   destinationMode: DestinationMode;
   setDestinationMode: (mode: DestinationMode) => void;
+  loadSavedRoute: (route: {
+    stops: Stop[];
+    origin: string;
+    destination: string;
+    destinationMode: DestinationMode;
+    fixedFirst: string | null;
+    fixedLast: string | null;
+    result: RouteResponse;
+  }) => void;
   fixedFirst: string | null;
   toggleFixedFirst: (address: string) => void;
   fixedLast: string | null;
@@ -198,6 +207,31 @@ export function StopsProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  function loadSavedRoute(route: {
+    stops: Stop[];
+    origin: string;
+    destination: string;
+    destinationMode: DestinationMode;
+    fixedFirst: string | null;
+    fixedLast: string | null;
+    result: RouteResponse;
+  }) {
+    const restoredStops = route.stops.map(normalizeStop);
+    nextId = Math.max(
+      nextId,
+      ...restoredStops.map((stop) => Number(stop.id) || 0),
+    );
+    setStops(restoredStops);
+    setOrigin(route.origin);
+    setDestination(route.destination);
+    setDestinationModeState(route.destinationMode);
+    setFixedFirst(route.fixedFirst);
+    setFixedLast(route.fixedLast);
+    setLastResult(route.result);
+    setLocationHintState(null);
+    resetNavigation();
+  }
+
   function setLocationHint(coords: Coordinates) {
     // Replica o site: só fixa a dica uma vez por sessão (primeiro endereço
     // confirmado), para manter o bias estável enquanto o usuário monta a rota.
@@ -278,6 +312,7 @@ export function StopsProvider({ children }: { children: ReactNode }) {
         setDestination,
         destinationMode,
         setDestinationMode,
+        loadSavedRoute,
         fixedFirst,
         toggleFixedFirst,
         fixedLast,
