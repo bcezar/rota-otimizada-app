@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
 import {
   Image,
   Pressable,
@@ -203,6 +204,18 @@ export default function Conta() {
         </Pressable>
         <Pressable style={styles.linkRow} onPress={() => router.push('/about')}>
           <Text style={styles.linkText}>Sobre nós</Text>
+        </Pressable>
+        <Pressable
+          style={styles.linkRow}
+          onPress={() => void WebBrowser.openBrowserAsync('https://rotaotimizada.com.br/privacidade')}
+        >
+          <Text style={styles.linkText}>Política de Privacidade</Text>
+        </Pressable>
+        <Pressable
+          style={styles.linkRow}
+          onPress={() => void WebBrowser.openBrowserAsync('https://rotaotimizada.com.br/termos-de-uso')}
+        >
+          <Text style={styles.linkText}>Termos de Uso</Text>
         </Pressable>
       </View>
 

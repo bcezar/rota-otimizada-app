@@ -56,12 +56,15 @@ export default function Navegacao() {
   const [availableHeight, setAvailableHeight] = useState(windowHeight);
   const {
     stops,
+    isHydrated,
     origin,
     destination,
     destinationMode,
     fixedFirst,
     fixedLast,
     lastResult,
+    locationHint,
+    setInitialLocationHint,
     removeStop,
     setLastResult,
     isNavigationStarted,
@@ -75,8 +78,9 @@ export default function Navegacao() {
   } = useStops();
   const { token } = useAuth();
   const { addresses, addAddress, updateAddress } = useAddressBook();
-  const { navigationApp } = usePreferences();
+  const { navigationApp, defaultOrigin, defaultDestination } = usePreferences();
   const [currentLocationRegion, setCurrentLocationRegion] = useState<Region | null>(null);
+  const [mapInitialCenterReady, setMapInitialCenterReady] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [polyline, setPolyline] = useState<Coordinates[] | null>(null);
   const [isPolylineLoading, setIsPolylineLoading] = useState(false);
@@ -104,7 +108,15 @@ export default function Navegacao() {
   const activeLocalStop = activeStop ? stops.find((stop) => stop.id === stopIdsByOrder[activeStop.order]) : null;
   const routePanelHeight = routePanelHeightForLevel(routePanelLevel, availableHeight);
   const routePanelHeightAnimation = useRef(new Animated.Value(routePanelHeight)).current;
-  const initialRegion = FALLBACK_REGION;
+  const initialReferenceAddress =
+    stops[stops.length - 1]?.address.trim() ||
+    origin.trim() ||
+    defaultOrigin.trim() ||
+    destination.trim() ||
+    defaultDestination.trim();
+  const initialRegion = currentLocationRegion ?? (locationHint
+    ? { ...FALLBACK_REGION, latitude: locationHint.lat, longitude: locationHint.lng }
+    : FALLBACK_REGION);
   const routePanelGestureStartHeight = useRef(routePanelHeight);
   const compactPanelStop = activeStop ??
     orderedStops.find((stop) => !routeStopStatuses[stop.order]) ??
@@ -203,19 +215,45 @@ export default function Navegacao() {
   }
 
   useEffect(() => {
+    if (!isHydrated || lastResult) return;
     let cancelled = false;
-    (async () => {
+    setMapInitialCenterReady(false);
+
+    function updateLocationRegion(latitude: number, longitude: number) {
+      setCurrentLocationRegion({
+        latitude,
+        longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+      setMapInitialCenterReady(true);
+    }
+
+    async function centerOnBestAvailableAddress() {
+      if (locationHint) {
+        updateLocationRegion(locationHint.lat, locationHint.lng);
+        return;
+      }
+
+      if (initialReferenceAddress) {
+        try {
+          const coordinates = await routesApi.geocode(initialReferenceAddress);
+          if (cancelled) return;
+          const initialCoords = { lat: coordinates.lat, lng: coordinates.lng };
+          setInitialLocationHint(initialCoords);
+          updateLocationRegion(initialCoords.lat, initialCoords.lng);
+          return;
+        } catch {
+          // Fall back to the device location if the saved address cannot be geocoded.
+        }
+      }
+
+      if (cancelled) return;
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') return;
-
-        function updateLocationRegion(latitude: number, longitude: number) {
-          setCurrentLocationRegion({
-            latitude,
-            longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          });
+        if (status !== 'granted') {
+          setMapInitialCenterReady(true);
+          return;
         }
 
         const lastKnown = await Location.getLastKnownPositionAsync({});
@@ -231,12 +269,15 @@ export default function Navegacao() {
         }
       } catch {
         // The map is already visible at FALLBACK_REGION; location is an enhancement.
+        if (!cancelled) setMapInitialCenterReady(true);
       }
-    })();
+    }
+
+    void centerOnBestAvailableAddress();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initialReferenceAddress, isHydrated, lastResult, locationHint]);
 
   useEffect(() => {
     if (!mapReady || !currentLocationRegion || lastResult) return;
@@ -545,13 +586,14 @@ export default function Navegacao() {
       style={styles.container}
       onLayout={(event) => setAvailableHeight(event.nativeEvent.layout.height)}
     >
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        initialRegion={initialRegion}
-        onMapReady={() => setMapReady(true)}
-      >
+      {lastResult || mapInitialCenterReady ? (
+        <MapView
+          ref={mapRef}
+          provider={PROVIDER_GOOGLE}
+          style={styles.map}
+          initialRegion={initialRegion}
+          onMapReady={() => setMapReady(true)}
+        >
         {polyline?.length ? (
           <Polyline
             coordinates={polyline.map((point) => ({
@@ -620,7 +662,12 @@ export default function Navegacao() {
             </View>
           </Marker>
         ) : null}
-      </MapView>
+        </MapView>
+      ) : (
+        <View style={styles.mapCentering}>
+          <ActivityIndicator color={colors.accent} />
+        </View>
+      )}
 
       <Pressable
         style={[styles.searchBar, { top: insets.top + 10 }]}
@@ -940,6 +987,12 @@ export default function Navegacao() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   map: StyleSheet.absoluteFill,
+  mapCentering: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
   pinBadge: {
     minWidth: 30,
     height: 30,

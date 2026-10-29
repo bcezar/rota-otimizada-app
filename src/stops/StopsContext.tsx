@@ -29,6 +29,7 @@ interface PersistedState {
 
 interface StopsContextValue {
   stops: Stop[];
+  isHydrated: boolean;
   addStop: (address: string) => void;
   addStops: (items: { address: string; description: string }[], mode: 'add' | 'replace') => void;
   removeStop: (id: string) => void;
@@ -56,6 +57,7 @@ interface StopsContextValue {
   toggleFixedLast: (address: string) => void;
   locationHint: Coordinates | null;
   setLocationHint: (coords: Coordinates) => void;
+  setInitialLocationHint: (coords: Coordinates) => void;
   lastResult: RouteResponse | null;
   setLastResult: (result: RouteResponse | null) => void;
   isNavigationStarted: boolean;
@@ -108,14 +110,14 @@ function parsePersisted(raw: string): PersistedState {
 
 export function StopsProvider({ children }: { children: ReactNode }) {
   const [stops, setStops] = useState<Stop[]>([]);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [destinationMode, setDestinationModeState] = useState<DestinationMode>('none');
   const [fixedFirst, setFixedFirst] = useState<string | null>(null);
   const [fixedLast, setFixedLast] = useState<string | null>(null);
-  // Não persistido — só serve de bias para o autocomplete durante a sessão
-  // atual, igual ao locationHint do site (que se auto-ajusta pelo 1º endereço
-  // confirmado em qualquer campo: parada, origem, destino ou mapa).
+  // Não persistido: começa pela origem/localização atual e depois acompanha a
+  // última parada escolhida para orientar o autocomplete e a próxima abertura do mapa.
   const [locationHint, setLocationHintState] = useState<Coordinates | null>(null);
   const [lastResult, setLastResult] = useState<RouteResponse | null>(null);
   const [isNavigationStarted, setIsNavigationStarted] = useState(false);
@@ -139,6 +141,7 @@ export function StopsProvider({ children }: { children: ReactNode }) {
         }
       } finally {
         hasLoaded.current = true;
+        setIsHydrated(true);
       }
     })();
   }, []);
@@ -233,8 +236,13 @@ export function StopsProvider({ children }: { children: ReactNode }) {
   }
 
   function setLocationHint(coords: Coordinates) {
-    // Replica o site: só fixa a dica uma vez por sessão (primeiro endereço
-    // confirmado), para manter o bias estável enquanto o usuário monta a rota.
+    // Mantém como referência a parada mais recente escolhida pelo usuário.
+    setLocationHintState(coords);
+  }
+
+  function setInitialLocationHint(coords: Coordinates) {
+    // Inicializa a referência com a origem ou localização atual, sem substituir
+    // uma parada que o usuário tenha escolhido enquanto a geocodificação ocorria.
     setLocationHintState((prev) => prev ?? coords);
   }
 
@@ -300,6 +308,7 @@ export function StopsProvider({ children }: { children: ReactNode }) {
     <StopsContext.Provider
       value={{
         stops,
+        isHydrated,
         addStop,
         addStops,
         removeStop,
@@ -319,6 +328,7 @@ export function StopsProvider({ children }: { children: ReactNode }) {
         toggleFixedLast,
         locationHint,
         setLocationHint,
+        setInitialLocationHint,
         lastResult,
         setLastResult,
         isNavigationStarted,

@@ -19,7 +19,7 @@ export default function AddStopsBatch() {
       lines.map((address) => ({ address, description: '' })),
       'add',
     );
-    router.back();
+    router.dismissTo('/otimizar');
   }
 
   return (

@@ -13,19 +13,55 @@ import {
 import { useAddressBook } from '../src/addressBook/AddressBookContext';
 import * as routesApi from '../src/api/routes';
 import { useDebouncedValue } from '../src/hooks/useDebouncedValue';
+import { usePreferences } from '../src/preferences/PreferencesContext';
 import { useStops } from '../src/stops/StopsContext';
 import { colors } from '../src/theme/colors';
 
 export default function AddStop() {
-  const { addStop, locationHint, setLocationHint } = useStops();
+  const {
+    addStop,
+    stops,
+    isHydrated,
+    origin,
+    destination,
+    locationHint,
+    setLocationHint,
+    setInitialLocationHint,
+  } = useStops();
+  const { defaultOrigin, defaultDestination } = usePreferences();
   const { addresses: savedAddresses } = useAddressBook();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isConfirming, setIsConfirming] = useState(false);
   const [error, setError] = useState('');
   const debouncedQuery = useDebouncedValue(query, 400);
+  const initialReferenceAddress =
+    stops[stops.length - 1]?.address.trim() ||
+    origin.trim() ||
+    defaultOrigin.trim() ||
+    destination.trim() ||
+    defaultDestination.trim();
 
   useEffect(() => {
+    if (!isHydrated || locationHint || !initialReferenceAddress) return;
+    let cancelled = false;
+    routesApi
+      .geocode(initialReferenceAddress)
+      .then((coordinates) => {
+        if (!cancelled) {
+          setInitialLocationHint({ lat: coordinates.lat, lng: coordinates.lng });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // The initial hint setter only fills an empty hint; later selections replace it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialReferenceAddress, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
     const trimmed = debouncedQuery.trim();
     if (trimmed.length < 3) {
       setSuggestions([]);
@@ -43,10 +79,7 @@ export default function AddStop() {
     return () => {
       cancelled = true;
     };
-    // locationHint intencionalmente fora das deps: só queremos re-buscar
-    // quando o texto muda, não quando a dica de localização é definida.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQuery]);
+  }, [debouncedQuery, isHydrated, locationHint]);
 
   async function confirmAddress(address: string) {
     setError('');
@@ -131,7 +164,7 @@ export default function AddStop() {
       )}
 
       <Pressable style={styles.cancelButton} onPress={() => router.back()}>
-        <Text style={styles.cancelButtonText}>Cancelar</Text>
+        <Text style={styles.cancelButtonText}>Voltar</Text>
       </Pressable>
     </View>
   );

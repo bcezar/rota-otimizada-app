@@ -9,7 +9,7 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.rotaotimizadaapp"
+      "bundleIdentifier": "br.com.rotaotimizada.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +22,7 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.anonymous.rotaotimizadaapp"
+      "package": "br.com.rotaotimizada.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -50,6 +50,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "158e3326-d9ce-49cc-8f83-0df831cf5c4d"
+      }
     }
   }
 }

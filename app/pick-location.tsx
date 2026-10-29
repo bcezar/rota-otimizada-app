@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -5,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 
 import * as routesApi from '../src/api/routes';
+import { usePreferences } from '../src/preferences/PreferencesContext';
 import { useStops } from '../src/stops/StopsContext';
 import { colors } from '../src/theme/colors';
 
@@ -16,15 +18,27 @@ const FALLBACK_REGION: Region = {
 };
 
 const REVERSE_GEOCODE_DEBOUNCE_MS = 600;
-// react-native-maps no iOS dispara onRegionChangeComplete várias vezes para a
-// mesma posição (a câmera "assenta" em múltiplos passos); ignoramos deltas
-// menores que isso para não estourar o rate limit de /api/v1/reverse.
-const MIN_COORD_DELTA = 0.0001;
+// Ignora só o ruído de câmera sem esconder deslocamentos curtos para outra rua.
+// 0.00001° representa aproximadamente 1 m de latitude.
+const MIN_COORD_DELTA = 0.00001;
 
 const TOAST_DURATION_MS = 1800;
 
 export default function PickLocation() {
-  const { stops, addStop, setLocationHint } = useStops();
+  const {
+    stops,
+    isHydrated,
+    addStop,
+    origin,
+    destination,
+    locationHint,
+    setLocationHint,
+    setInitialLocationHint,
+  } = useStops();
+  const { defaultOrigin, defaultDestination } = usePreferences();
+  const initialReferenceAddress =
+    stops[stops.length - 1]?.address.trim() ||
+    origin.trim() || defaultOrigin.trim() || destination.trim() || defaultDestination.trim();
   const [currentLocationRegion, setCurrentLocationRegion] = useState<Region | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [address, setAddress] = useState('');
@@ -39,51 +53,96 @@ export default function PickLocation() {
   const addedToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mapRef = useRef<MapView | null>(null);
   const userMovedMap = useRef(false);
+  const mapCenterInitialized = useRef(false);
+  const locationHintRef = useRef(locationHint);
+  locationHintRef.current = locationHint;
 
   useEffect(() => {
+    if (!isHydrated || mapCenterInitialized.current) return;
     let cancelled = false;
-    (async () => {
+    const previousHint = locationHintRef.current;
+    const startAddress = initialReferenceAddress;
+
+    function updateLocationRegion(latitude: number, longitude: number) {
+      setCurrentLocationRegion({
+        latitude,
+        longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    }
+
+    async function initializeMapCenter() {
+      if (previousHint) {
+        mapCenterInitialized.current = true;
+        updateLocationRegion(previousHint.lat, previousHint.lng);
+        return;
+      }
+
+      if (startAddress) {
+        try {
+          const coordinates = await routesApi.geocode(startAddress);
+          if (cancelled || userMovedMap.current) return;
+          if (locationHintRef.current) {
+            mapCenterInitialized.current = true;
+            updateLocationRegion(locationHintRef.current.lat, locationHintRef.current.lng);
+            return;
+          }
+          const initialCoords = { lat: coordinates.lat, lng: coordinates.lng };
+          mapCenterInitialized.current = true;
+          setInitialLocationHint(initialCoords);
+          updateLocationRegion(initialCoords.lat, initialCoords.lng);
+          return;
+        } catch {
+          // If the origin cannot be geocoded, fall back to the device location.
+        }
+      }
+
+      if (cancelled || userMovedMap.current) return;
       try {
+        if (locationHintRef.current) {
+          mapCenterInitialized.current = true;
+          updateLocationRegion(locationHintRef.current.lat, locationHintRef.current.lng);
+          return;
+        }
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') return;
 
-        function updateLocationRegion(latitude: number, longitude: number) {
-          setCurrentLocationRegion({
-            latitude,
-            longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          });
-        }
-
         const lastKnown = await Location.getLastKnownPositionAsync({});
-        if (lastKnown && !cancelled) {
+        if (lastKnown && !cancelled && !userMovedMap.current) {
+          mapCenterInitialized.current = true;
+          setInitialLocationHint({ lat: lastKnown.coords.latitude, lng: lastKnown.coords.longitude });
           updateLocationRegion(lastKnown.coords.latitude, lastKnown.coords.longitude);
         }
 
         const position = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
-        if (!cancelled) {
+        if (!cancelled && !userMovedMap.current) {
+          mapCenterInitialized.current = true;
+          setLocationHint({ lat: position.coords.latitude, lng: position.coords.longitude });
           updateLocationRegion(position.coords.latitude, position.coords.longitude);
         }
       } catch {
         // The map is already visible at FALLBACK_REGION; location is an enhancement.
       }
-    })();
+    }
+
+    void initializeMapCenter();
 
     return () => {
       cancelled = true;
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
       if (addedToastTimer.current) clearTimeout(addedToastTimer.current);
     };
-  }, []);
+  }, [initialReferenceAddress, isHydrated]);
 
   useEffect(() => {
     if (!mapReady || !currentLocationRegion || userMovedMap.current) return;
     mapRef.current?.animateToRegion(currentLocationRegion, 450);
   }, [mapReady, currentLocationRegion]);
 
-  function handleRegionChangeComplete(region: Region) {
+  function handleRegionChange(region: Region) {
     const last = lastQueriedCoords.current;
     if (
       last &&
@@ -144,19 +203,28 @@ export default function PickLocation() {
     setDuplicateToast(false);
   }
 
+  function handleFinish() {
+    router.dismissTo('/otimizar');
+  }
+
   return (
     <View style={styles.container}>
       <MapView
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
         style={styles.map}
-        initialRegion={FALLBACK_REGION}
+        initialRegion={
+          locationHint
+            ? { ...FALLBACK_REGION, latitude: locationHint.lat, longitude: locationHint.lng }
+            : FALLBACK_REGION
+        }
         onMapReady={() => setMapReady(true)}
         onPanDrag={() => { userMovedMap.current = true; }}
-        onRegionChangeComplete={handleRegionChangeComplete}
+        onRegionChange={handleRegionChange}
+        onRegionChangeComplete={handleRegionChange}
       />
       <View pointerEvents="none" style={styles.pin}>
-        <Text style={styles.pinEmoji}>📍</Text>
+        <Ionicons name="location-sharp" size={42} color={colors.accent} />
       </View>
 
       {addedToast ? (
@@ -184,7 +252,7 @@ export default function PickLocation() {
           {isLoading ? 'Carregando...' : error || address || 'Arraste o mapa para escolher um local'}
         </Text>
         <View style={styles.actions}>
-          <Pressable style={styles.cancelButton} onPress={() => router.back()}>
+          <Pressable style={styles.cancelButton} onPress={handleFinish}>
             <Text style={styles.cancelButtonText}>Concluir</Text>
           </Pressable>
           <Pressable
@@ -212,11 +280,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    marginLeft: -16,
-    marginTop: -32,
-  },
-  pinEmoji: {
-    fontSize: 32,
+    marginLeft: -21,
+    marginTop: -42,
   },
   addedToast: {
     position: 'absolute',

@@ -45,8 +45,8 @@ export default function PickSavedAddress() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Lista de endereços</Text>
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.closeText}>Fechar</Text>
+        <Pressable onPress={() => router.dismissTo('/otimizar')}>
+          <Text style={styles.closeText}>Concluir</Text>
         </Pressable>
       </View>
 

@@ -9,5 +9,13 @@ module.exports = ({ config }) => ({
         androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_ANDROID_API_KEY,
       },
     ],
+    [
+      'expo-build-properties',
+      {
+        ios: {
+          enableSceneSupport: true,
+        },
+      },
+    ],
   ],
 });
