@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useAddressBook } from '../src/addressBook/AddressBookContext';
+import { SafeAreaScreen } from '../src/components/SafeAreaScreen';
 import { useStops } from '../src/stops/StopsContext';
 import { colors } from '../src/theme/colors';
 
@@ -37,10 +38,16 @@ export default function EditClient() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaScreen style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Cliente</Text>
-        <Pressable onPress={() => router.back()}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Fechar"
+          hitSlop={8}
+          style={styles.closeButton}
+          onPress={() => router.back()}
+        >
           <Text style={styles.closeText}>Fechar</Text>
         </Pressable>
       </View>
@@ -73,7 +80,7 @@ export default function EditClient() {
       <Pressable style={styles.saveButton} onPress={handleSave}>
         <Text style={styles.saveButtonText}>Salvar</Text>
       </Pressable>
-    </View>
+    </SafeAreaScreen>
   );
 }
 
@@ -97,6 +104,12 @@ const styles = StyleSheet.create({
   closeText: {
     color: colors.textMuted,
     fontWeight: '600',
+  },
+  closeButton: {
+    minHeight: 44,
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     borderWidth: 1,

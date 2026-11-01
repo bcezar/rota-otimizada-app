@@ -31,7 +31,7 @@ export function BottomTabBar({ state, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 60) }]}>
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
         const isCenter = route.name === 'otimizar';

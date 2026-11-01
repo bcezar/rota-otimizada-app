@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { useAddressBook } from '../src/addressBook/AddressBookContext';
+import { SafeAreaScreen } from '../src/components/SafeAreaScreen';
 import { SettingsRow } from '../src/components/SettingsRow';
 import { colors } from '../src/theme/colors';
 
@@ -22,9 +23,9 @@ export default function AddressDetail() {
 
   if (!id || !current) {
     return (
-      <View style={styles.container}>
+      <SafeAreaScreen style={styles.container}>
         <Text style={styles.emptyText}>Endereço não encontrado.</Text>
-      </View>
+      </SafeAreaScreen>
     );
   }
 
@@ -62,13 +63,20 @@ export default function AddressDetail() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Detalhe do endereço</Text>
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.closeText}>Fechar</Text>
-        </Pressable>
-      </View>
+    <SafeAreaScreen style={styles.container}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Detalhe do endereço</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Fechar detalhe do endereço"
+            hitSlop={8}
+            style={styles.closeButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.closeText}>Fechar</Text>
+          </Pressable>
+        </View>
 
       {/* Seção 1 — Local */}
       <View style={styles.section}>
@@ -140,10 +148,11 @@ export default function AddressDetail() {
         <Text style={styles.saveButtonText}>Salvar</Text>
       </Pressable>
 
-      <Pressable style={styles.deleteButton} onPress={handleRemoveAddress}>
-        <Text style={styles.deleteButtonText}>Remover endereço</Text>
-      </Pressable>
-    </ScrollView>
+        <Pressable style={styles.deleteButton} onPress={handleRemoveAddress}>
+          <Text style={styles.deleteButtonText}>Remover endereço</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaScreen>
   );
 }
 
@@ -151,6 +160,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
     padding: 24,
@@ -171,6 +183,12 @@ const styles = StyleSheet.create({
   closeText: {
     color: colors.textMuted,
     fontWeight: '600',
+  },
+  closeButton: {
+    minHeight: 44,
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   saveButton: {
     backgroundColor: colors.accent,

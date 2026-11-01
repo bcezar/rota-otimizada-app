@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { SafeAreaScreen } from '../src/components/SafeAreaScreen';
 import { colors } from '../src/theme/colors';
 
 const FAQ_ITEMS = [
@@ -36,10 +37,16 @@ export default function Faq() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaScreen style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Perguntas frequentes</Text>
-        <Pressable onPress={() => router.back()}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Fechar perguntas frequentes"
+          hitSlop={8}
+          style={styles.closeButton}
+          onPress={() => router.back()}
+        >
           <Text style={styles.closeText}>Fechar</Text>
         </Pressable>
       </View>
@@ -59,7 +66,7 @@ export default function Faq() {
           );
         })}
       </ScrollView>
-    </View>
+    </SafeAreaScreen>
   );
 }
 
@@ -83,6 +90,12 @@ const styles = StyleSheet.create({
   closeText: {
     color: colors.textMuted,
     fontWeight: '600',
+  },
+  closeButton: {
+    minHeight: 44,
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   item: {
     paddingVertical: 14,

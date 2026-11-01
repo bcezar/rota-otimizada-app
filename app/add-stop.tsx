@@ -2,8 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from 'expo-speech-recognition';
+import {
   ActivityIndicator,
+  Keyboard,
   Pressable,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -12,6 +18,7 @@ import {
 
 import { useAddressBook } from '../src/addressBook/AddressBookContext';
 import * as routesApi from '../src/api/routes';
+import { SafeAreaScreen } from '../src/components/SafeAreaScreen';
 import { useDebouncedValue } from '../src/hooks/useDebouncedValue';
 import { usePreferences } from '../src/preferences/PreferencesContext';
 import { useStops } from '../src/stops/StopsContext';
@@ -33,6 +40,7 @@ export default function AddStop() {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState('');
   const debouncedQuery = useDebouncedValue(query, 400);
   const initialReferenceAddress =
@@ -41,6 +49,24 @@ export default function AddStop() {
     defaultOrigin.trim() ||
     destination.trim() ||
     defaultDestination.trim();
+
+  useSpeechRecognitionEvent('start', () => {
+    setIsListening(true);
+    setError('');
+  });
+  useSpeechRecognitionEvent('end', () => setIsListening(false));
+  useSpeechRecognitionEvent('result', (event) => {
+    const transcript = event.results[0]?.transcript.trim();
+    if (event.isFinal && transcript) setQuery(transcript);
+  });
+  useSpeechRecognitionEvent('error', (event) => {
+    setIsListening(false);
+    if (event.error === 'not-allowed') {
+      setError('Permita o acesso ao microfone e ao reconhecimento de voz para ditar.');
+    } else if (event.error !== 'aborted' && event.error !== 'no-speech') {
+      setError('Não foi possível reconhecer a fala. Tente novamente.');
+    }
+  });
 
   useEffect(() => {
     if (!isHydrated || locationHint || !initialReferenceAddress) return;
@@ -96,6 +122,36 @@ export default function AddStop() {
     }
   }
 
+  async function handleVoiceInput() {
+    if (isListening) {
+      ExpoSpeechRecognitionModule.stop();
+      return;
+    }
+
+    setError('');
+    try {
+      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!permission.granted) {
+        setError('Permita o acesso ao microfone e ao reconhecimento de voz para ditar.');
+        return;
+      }
+      if (!ExpoSpeechRecognitionModule.isRecognitionAvailable()) {
+        setError('O reconhecimento de voz não está disponível neste aparelho.');
+        return;
+      }
+
+      Keyboard.dismiss();
+      ExpoSpeechRecognitionModule.start({
+        lang: 'pt-BR',
+        interimResults: true,
+        continuous: false,
+      });
+    } catch {
+      setIsListening(false);
+      setError('Não foi possível iniciar o ditado. Tente novamente.');
+    }
+  }
+
   function handleSavedAddressPress() {
     if (savedAddresses.length === 0) {
       setError('Nenhum endereço salvo ainda.');
@@ -107,17 +163,39 @@ export default function AddStop() {
   const showSuggestions = query.trim().length >= 3;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaScreen style={styles.container}>
       <Text style={styles.title}>Adicionar parada</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Digite um endereço"
-        placeholderTextColor={colors.textMuted}
-        autoFocus
-        value={query}
-        onChangeText={setQuery}
-        onSubmitEditing={() => query.trim() && confirmAddress(query.trim())}
-      />
+      <View style={styles.inputRow}>
+        <TextInput
+          style={styles.input}
+          placeholder="Digite um endereço"
+          placeholderTextColor={colors.textMuted}
+          autoFocus
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={() => query.trim() && confirmAddress(query.trim())}
+        />
+        {Platform.OS !== 'web' ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isListening ? 'Parar ditado' : 'Ditar endereço'}
+            accessibilityState={{ selected: isListening }}
+            style={[styles.voiceButton, isListening && styles.voiceButtonActive]}
+            onPress={() => void handleVoiceInput()}
+          >
+            <Ionicons
+              name={isListening ? 'stop' : 'mic-outline'}
+              size={22}
+              color={isListening ? colors.onAccent : colors.accent}
+            />
+          </Pressable>
+        ) : null}
+      </View>
+      {isListening ? (
+        <Text accessibilityLiveRegion="polite" style={styles.voiceStatus}>
+          Ouvindo… toque no botão para encerrar.
+        </Text>
+      ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {isConfirming ? <ActivityIndicator style={styles.loading} /> : null}
 
@@ -166,15 +244,15 @@ export default function AddStop() {
       <Pressable style={styles.cancelButton} onPress={() => router.back()}>
         <Text style={styles.cancelButtonText}>Voltar</Text>
       </Pressable>
-    </View>
+    </SafeAreaScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: colors.background,
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     gap: 12,
   },
   title: {
@@ -183,6 +261,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   input: {
+    flex: 1,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -190,6 +269,30 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 14,
     fontSize: 16,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  voiceButton: {
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  voiceButtonActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  voiceStatus: {
+    color: colors.accent,
+    fontSize: 13,
+    textAlign: 'center',
   },
   error: {
     color: colors.danger,

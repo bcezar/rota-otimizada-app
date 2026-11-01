@@ -1,7 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -41,7 +43,13 @@ const VEHICLE_TYPES: { value: VehicleType; label: string }[] = [
 ];
 
 export default function Conta() {
-  const { user, logout } = useAuth();
+  const {
+    user,
+    logout,
+    proActivationStatus,
+    verifyProActivation,
+    clearProActivationStatus,
+  } = useAuth();
   const {
     defaultOrigin,
     defaultDestination,
@@ -94,10 +102,62 @@ export default function Conta() {
 
             <View style={styles.divider} />
 
-            <View style={styles.planRow}>
-              <Text style={styles.planLabel}>Plano atual</Text>
-              <Text style={styles.planValue}>{planLabel}</Text>
-            </View>
+            {proActivationStatus !== 'idle' ? (
+              <View style={styles.paymentStatus}>
+                {proActivationStatus === 'checking' ? (
+                  <ActivityIndicator size="small" color={colors.accent} />
+                ) : (
+                  <Ionicons
+                    name={proActivationStatus === 'confirmed' ? 'checkmark-circle' : 'time-outline'}
+                    size={20}
+                    color={proActivationStatus === 'confirmed' ? colors.success : colors.accent}
+                  />
+                )}
+                <View style={styles.paymentStatusContent}>
+                  <Text style={styles.paymentStatusText}>
+                    {proActivationStatus === 'checking'
+                      ? 'Estamos confirmando seu pagamento. Seu plano será atualizado assim que recebermos a confirmação.'
+                      : proActivationStatus === 'confirmed'
+                        ? 'Pagamento confirmado. Seu Plano Pro está ativo.'
+                        : 'Ainda não recebemos a confirmação do pagamento.'}
+                  </Text>
+                  {proActivationStatus === 'pending' ? (
+                    <Pressable onPress={() => void verifyProActivation()}>
+                      <Text style={styles.verifyPaymentText}>Verificar status</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                {proActivationStatus !== 'checking' ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Fechar aviso de pagamento"
+                    onPress={clearProActivationStatus}
+                  >
+                    <Ionicons name="close" size={18} color={colors.textMuted} />
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+
+            {user.is_pro && !user.is_exclusive ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Plano atual Pro. Abrir detalhes da assinatura."
+                style={styles.planRow}
+                onPress={() => router.push('/subscription')}
+              >
+                <Text style={styles.planLabel}>Plano atual</Text>
+                <View style={styles.planValueRow}>
+                  <Text style={styles.planValue}>{planLabel}</Text>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </View>
+              </Pressable>
+            ) : (
+              <View style={styles.planRow}>
+                <Text style={styles.planLabel}>Plano atual</Text>
+                <Text style={styles.planValue}>{planLabel}</Text>
+              </View>
+            )}
 
             {canUpgrade ? (
               <Pressable style={styles.upgradeButton} onPress={() => router.push('/upgrade')}>
@@ -310,10 +370,40 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
   },
+  paymentStatus: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  paymentStatusContent: {
+    flex: 1,
+    gap: 6,
+  },
+  paymentStatusText: {
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  verifyPaymentText: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   planRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: 40,
+  },
+  planValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   planLabel: {
     color: colors.textMuted,

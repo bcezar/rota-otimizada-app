@@ -1,8 +1,18 @@
+import { Platform } from 'react-native';
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 if (!API_BASE_URL) {
   throw new Error('EXPO_PUBLIC_API_BASE_URL não está definida (veja .env)');
 }
+
+const resolvedApiBaseUrl =
+  __DEV__ && Platform.OS === 'android'
+    ? API_BASE_URL.replace(
+        /^(https?:\/\/)(localhost|127\.0\.0\.1)(?=[:/]|$)/i,
+        (_match, protocol: string) => `${protocol}10.0.2.2`,
+      )
+    : API_BASE_URL;
 
 export class ApiError extends Error {
   constructor(
@@ -30,7 +40,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     headers['X-Anonymous-ID'] = options.anonymousId;
   }
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(`${resolvedApiBaseUrl}${path}`, {
     method: options.method ?? 'GET',
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,

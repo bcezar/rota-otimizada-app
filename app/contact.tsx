@@ -6,12 +6,12 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
 } from 'react-native';
 
 import { ApiError } from '../src/api/client';
 import * as contactApi from '../src/api/contact';
 import { useAuth } from '../src/auth/AuthContext';
+import { SafeAreaScreen } from '../src/components/SafeAreaScreen';
 import { colors } from '../src/theme/colors';
 
 export default function Contact() {
@@ -37,18 +37,18 @@ export default function Contact() {
 
   if (sent) {
     return (
-      <View style={styles.container}>
+      <SafeAreaScreen style={styles.container}>
         <Text style={styles.title}>Mensagem enviada!</Text>
         <Text style={styles.subtitle}>Obrigado pelo contato, responderemos em breve.</Text>
         <Pressable style={styles.submitButton} onPress={() => router.back()}>
           <Text style={styles.submitButtonText}>Fechar</Text>
         </Pressable>
-      </View>
+      </SafeAreaScreen>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaScreen style={styles.container}>
       <Text style={styles.title}>Fale conosco</Text>
 
       <TextInput
@@ -89,7 +89,7 @@ export default function Contact() {
       <Pressable style={styles.cancelButton} onPress={() => router.back()}>
         <Text style={styles.cancelButtonText}>Cancelar</Text>
       </Pressable>
-    </View>
+    </SafeAreaScreen>
   );
 }
 

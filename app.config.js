@@ -17,5 +17,18 @@ module.exports = ({ config }) => ({
         },
       },
     ],
+    [
+      'expo-speech-recognition',
+      {
+        microphonePermission:
+          'O Rota Otimizada precisa do microfone para transcrever endereços ditados.',
+        speechRecognitionPermission:
+          'O Rota Otimizada usa o reconhecimento de voz para preencher o endereço informado.',
+        androidSpeechServicePackages: [
+          'com.google.android.googlequicksearchbox',
+          'com.google.android.tts',
+        ],
+      },
+    ],
   ],
 });

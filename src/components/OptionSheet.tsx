@@ -1,4 +1,5 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../theme/colors';
 
@@ -16,6 +17,8 @@ interface Props {
 }
 
 export function OptionSheet({ visible, onClose, title, options }: Props) {
+  const insets = useSafeAreaInsets();
+
   function handleSelect(onPress: () => void) {
     onPress();
     onClose();
@@ -24,7 +27,10 @@ export function OptionSheet({ visible, onClose, title, options }: Props) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
+        <Pressable
+          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + 24, 64) }]}
+          onPress={() => {}}
+        >
           {title ? <Text style={styles.title}>{title}</Text> : null}
           {options.map((option) => (
             <Pressable
@@ -58,7 +64,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
-    paddingBottom: 32,
     gap: 4,
   },
   title: {
@@ -82,6 +87,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   cancelButton: {
+    minHeight: 48,
     marginTop: 12,
     alignItems: 'center',
     padding: 14,

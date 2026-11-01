@@ -100,11 +100,22 @@ export interface BillingAccountUser {
   is_pro: boolean;
   is_exclusive: boolean;
   exclusive_until: string | null;
+  pro_expires_at: string | null;
+}
+
+export interface BillingSubscription {
+  id?: string;
+  status?: string;
+  value?: number | null;
+  currency?: string | null;
+  nextDueDate?: string | null;
+  billingType?: string | null;
+  provider?: string | null;
 }
 
 export interface BillingAccountResponse {
   user: BillingAccountUser;
-  subscription: Record<string, unknown> | null;
+  subscription: BillingSubscription | null;
   payments: Record<string, unknown>[];
 }
 

@@ -1,14 +1,21 @@
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { SafeAreaScreen } from '../src/components/SafeAreaScreen';
 import { colors } from '../src/theme/colors';
 
 export default function About() {
   return (
-    <View style={styles.container}>
+    <SafeAreaScreen style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Sobre nós</Text>
-        <Pressable onPress={() => router.back()}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Fechar sobre nós"
+          hitSlop={8}
+          style={styles.closeButton}
+          onPress={() => router.back()}
+        >
           <Text style={styles.closeText}>Fechar</Text>
         </Pressable>
       </View>
@@ -23,7 +30,7 @@ export default function About() {
           sugerir a rota mais eficiente — tudo em poucos segundos.
         </Text>
       </ScrollView>
-    </View>
+    </SafeAreaScreen>
   );
 }
 
@@ -47,6 +54,12 @@ const styles = StyleSheet.create({
   closeText: {
     color: colors.textMuted,
     fontWeight: '600',
+  },
+  closeButton: {
+    minHeight: 44,
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   paragraph: {
     color: colors.text,

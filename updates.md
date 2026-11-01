@@ -1,6 +1,6 @@
 # Rota Otimizada — App mobile: status atual
 
-Última atualização: 2026-10-28
+Última atualização: 2026-10-31
 
 ## Onde paramos
 
@@ -17,8 +17,8 @@ ok.
 | **Endereços** | Livro de endereços completo (lista em cards, busca com autocomplete, detalhe com nome do local, notas, cliente, tags). Visitante mantém dados locais; usuários autenticados sincronizam com o backend e acessam a lista em outros dispositivos. Exclusões usam tombstones para sincronização offline. |
 | **Otimizar** | Tela principal de montagem de rota: Ponto de Partida, Destino Final, Adicionar parada, lista de paradas em cards com contador, botão Otimizar. Validado. |
 | **Importar** | Importação CSV/XLS com preview e template. Validado. |
-| **Conta** | Perfil, plano, upgrade (Asaas PIX/cartão/cupom), preferências sincronizadas com o backend, FAQ, fale conosco, sobre, fluxo de exclusão e sair. |
-| Fluxo de adicionar parada | Busca por texto, Mapa, Lote, Lista de endereços (com switch), Importar. Validado. |
+| **Conta** | Perfil, plano, detalhes da assinatura Pro, upgrade (Asaas PIX/cartão/cupom), atualização automática do status Pro ao retornar ao app e aviso enquanto a confirmação do pagamento chega — validado no fluxo QA em 2026-10-30 —, preferências sincronizadas com o backend, FAQ, fale conosco, sobre, fluxo de exclusão e sair. |
+| Fluxo de adicionar parada | Busca por texto, ditado por voz em `pt-BR`, Mapa, Lote, Lista de endereços (com switch), Importar. Ditado implementado; falta validar o reconhecimento nos aparelhos. |
 | Detalhe da parada | Mesmas seções do endereço salvo (nome, notas, cliente, tags), aplicadas à parada da rota. Validado. |
 | Resultado | Lista ordenada, visitada/pulada, Google Maps, compartilhar, copiar. Validado. |
 | Login | Magic link por e-mail com retorno móvel por deep link e troca de código temporário; callback ainda depende de development build para validar. Login provisório sem magic link disponível apenas em desenvolvimento e bloqueado por padrão no backend. |
@@ -56,9 +56,14 @@ ok.
 ## Pendências
 
 **Prioridade imediata:**
-1. Corrigir a visualização dos cards na tela **Ajustar ordem**. O usuário relata
-   que o drag and drop está presente, mas a área da lista parece cortada ou
-   colapsada no simulador. Deixar este item anotado e retomar depois.
+1. Validar no emulador a correção de layout da tela **Ajustar ordem**. O
+   contêiner externo da lista agora recebe o espaço flexível, mantendo os botões
+   no rodapé; falta confirmar que os cards não ficam cortados.
+2. Validar a tela de detalhes do **Plano Pro** no app: status, valor, forma de
+   pagamento, próxima cobrança, cancelamento com aviso e motivos opcionais.
+   O backend grava os motivos após o cancelamento e a tabela é criada
+   automaticamente na inicialização; a tela precisa ser conferida com dados
+   reais de uma assinatura.
 
 **Para depois:**
 - **Excluir conta — implementado com reembolso; revisão jurídica pendente:**
@@ -86,10 +91,6 @@ ok.
   manter contraste e legibilidade nos dois temas.
 
 **Adiadas:**
-- Reconhecimento de voz no campo de endereço. Alternativa simples: usar a
-  ditagem por voz do teclado do sistema, que preenche o TextInput sem código
-  nativo específico. Reconhecimento embutido no app pode ser avaliado depois;
-  bibliotecas nativas requerem development build em vez do Expo Go.
 - Exportar paradas para CSV (existe no site, não portado).
 - Notificações push e Live Activities: plano futuro.
 - Biometria para acesso: boa possibilidade futura, ainda sem plano definido.
@@ -121,3 +122,8 @@ cd ../rota-otimizada && .venv/bin/uvicorn app.main:app --reload --port 8000
 # Terminal 2 — app
 cd rota-otimizada-app && npx expo start --ios
 ```
+
+Em desenvolvimento, use `http://127.0.0.1:8000` como base local da API. O
+cliente mantém esse endereço no iOS Simulator e troca automaticamente para
+`10.0.2.2` no Android Emulator. Em aparelhos físicos, configure o IP local do
+Mac e inicie o backend com `--host 0.0.0.0`.

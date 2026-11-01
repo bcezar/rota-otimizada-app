@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { SettingsRow } from '../src/components/SettingsRow';
+import { SafeAreaScreen } from '../src/components/SafeAreaScreen';
 import { useStops } from '../src/stops/StopsContext';
 import { colors } from '../src/theme/colors';
 
@@ -22,9 +23,9 @@ export default function StopDetail() {
 
   if (!id || !current) {
     return (
-      <View style={styles.container}>
+      <SafeAreaScreen style={styles.container}>
         <Text style={styles.emptyText}>Parada não encontrada.</Text>
-      </View>
+      </SafeAreaScreen>
     );
   }
 
@@ -62,13 +63,20 @@ export default function StopDetail() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Detalhe da parada</Text>
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.closeText}>Fechar</Text>
-        </Pressable>
-      </View>
+    <SafeAreaScreen style={styles.container}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Detalhe da parada</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Fechar detalhe da parada"
+            hitSlop={8}
+            style={styles.closeButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.closeText}>Fechar</Text>
+          </Pressable>
+        </View>
 
       {/* Seção 1 — Local */}
       <View style={styles.section}>
@@ -141,12 +149,13 @@ export default function StopDetail() {
         </View>
       </View>
 
-      {source !== 'navigation' ? (
-        <Pressable style={styles.deleteButton} onPress={handleRemoveStop}>
-          <Text style={styles.deleteButtonText}>Remover parada</Text>
-        </Pressable>
-      ) : null}
-    </ScrollView>
+        {source !== 'navigation' ? (
+          <Pressable style={styles.deleteButton} onPress={handleRemoveStop}>
+            <Text style={styles.deleteButtonText}>Remover parada</Text>
+          </Pressable>
+        ) : null}
+      </ScrollView>
+    </SafeAreaScreen>
   );
 }
 
@@ -154,6 +163,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
     padding: 24,
@@ -172,6 +184,12 @@ const styles = StyleSheet.create({
   closeText: {
     color: colors.textMuted,
     fontWeight: '600',
+  },
+  closeButton: {
+    minHeight: 44,
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyText: {
     color: colors.textMuted,

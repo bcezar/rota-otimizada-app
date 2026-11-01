@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { useAddressBook, type SavedAddress } from '../src/addressBook/AddressBookContext';
+import { SafeAreaScreen } from '../src/components/SafeAreaScreen';
 import { useStops } from '../src/stops/StopsContext';
 import { colors } from '../src/theme/colors';
 
@@ -42,10 +43,16 @@ export default function PickSavedAddress() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaScreen style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Lista de endereços</Text>
-        <Pressable onPress={() => router.dismissTo('/otimizar')}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Concluir seleção de endereços"
+          hitSlop={8}
+          style={styles.closeButton}
+          onPress={() => router.dismissTo('/otimizar')}
+        >
           <Text style={styles.closeText}>Concluir</Text>
         </Pressable>
       </View>
@@ -58,15 +65,15 @@ export default function PickSavedAddress() {
           <Text style={styles.emptyText}>Nenhum endereço salvo ainda.</Text>
         }
       />
-    </View>
+    </SafeAreaScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: colors.background,
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
   header: {
     flexDirection: 'row',
@@ -82,6 +89,12 @@ const styles = StyleSheet.create({
   closeText: {
     color: colors.textMuted,
     fontWeight: '600',
+  },
+  closeButton: {
+    minHeight: 44,
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   row: {
     flexDirection: 'row',

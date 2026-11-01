@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as routesApi from '../src/api/routes';
 import { usePreferences } from '../src/preferences/PreferencesContext';
@@ -25,6 +26,7 @@ const MIN_COORD_DELTA = 0.00001;
 const TOAST_DURATION_MS = 1800;
 
 export default function PickLocation() {
+  const insets = useSafeAreaInsets();
   const {
     stops,
     isHydrated,
@@ -228,7 +230,7 @@ export default function PickLocation() {
       </View>
 
       {addedToast ? (
-        <View pointerEvents="none" style={styles.addedToast}>
+        <View pointerEvents="none" style={[styles.addedToast, { top: insets.top + 12 }]}>
           <Text style={styles.addedToastText}>Endereço adicionado</Text>
         </View>
       ) : null}
@@ -247,7 +249,7 @@ export default function PickLocation() {
         </View>
       ) : null}
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
         <Text style={styles.addressText}>
           {isLoading ? 'Carregando...' : error || address || 'Arraste o mapa para escolher um local'}
         </Text>
@@ -285,7 +287,6 @@ const styles = StyleSheet.create({
   },
   addedToast: {
     position: 'absolute',
-    top: 60,
     alignSelf: 'center',
     backgroundColor: 'rgba(26, 127, 60, 0.92)',
     paddingVertical: 8,

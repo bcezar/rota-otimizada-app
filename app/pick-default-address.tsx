@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import * as routesApi from '../src/api/routes';
+import { SafeAreaScreen } from '../src/components/SafeAreaScreen';
 import { useDebouncedValue } from '../src/hooks/useDebouncedValue';
 import { usePreferences } from '../src/preferences/PreferencesContext';
 import { useStops } from '../src/stops/StopsContext';
@@ -103,12 +104,18 @@ export default function PickDefaultAddress() {
   const showSpecialRows = query.trim().length === 0;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaScreen style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>
           {target === 'origin' ? 'Endereço de início padrão' : 'Endereço de fim padrão'}
         </Text>
-        <Pressable onPress={() => router.back()}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Fechar seleção de endereço padrão"
+          hitSlop={8}
+          style={styles.closeButton}
+          onPress={() => router.back()}
+        >
           <Text style={styles.closeText}>Fechar</Text>
         </Pressable>
       </View>
@@ -159,7 +166,7 @@ export default function PickDefaultAddress() {
           ))}
         </View>
       )}
-    </View>
+    </SafeAreaScreen>
   );
 }
 
@@ -183,6 +190,12 @@ const styles = StyleSheet.create({
   closeText: {
     color: colors.textMuted,
     fontWeight: '600',
+  },
+  closeButton: {
+    minHeight: 44,
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     borderWidth: 1,

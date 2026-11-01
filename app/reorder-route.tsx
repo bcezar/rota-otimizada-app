@@ -96,9 +96,15 @@ export default function ReorderRoute() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.header}>
-        <Pressable accessibilityLabel="Voltar" onPress={() => router.back()}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+          hitSlop={8}
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </Pressable>
         <Text style={styles.title}>Ajustar ordem</Text>
@@ -110,6 +116,7 @@ export default function ReorderRoute() {
 
       <View style={styles.listContainer}>
         <DraggableFlatList
+          containerStyle={styles.listContainer}
           style={styles.list}
           contentContainerStyle={styles.listContent}
           data={items}
@@ -182,7 +189,7 @@ export default function ReorderRoute() {
       </View>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
         <Pressable style={styles.secondaryButton} onPress={() => router.back()} disabled={isSaving}>
           <Text style={styles.secondaryButtonText}>Cancelar</Text>
         </Pressable>
@@ -206,6 +213,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, paddingHorizontal: 18 },
   emptyContainer: { justifyContent: 'center', gap: 16 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 18, marginBottom: 10 },
+  backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerSpacer: { width: 24 },
   title: { color: colors.text, fontSize: 20, fontWeight: '700' },
   description: { color: colors.textMuted, fontSize: 14, marginBottom: 16 },

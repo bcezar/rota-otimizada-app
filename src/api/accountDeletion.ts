@@ -10,6 +10,20 @@ export interface AccountDeletionPreview {
   deletion_enabled: boolean;
 }
 
+export type AccountDeletionStatusValue =
+  | 'none'
+  | 'awaiting_confirmation'
+  | 'awaiting_authorization'
+  | 'refund_processing'
+  | 'refund_completed';
+
+export interface AccountDeletionStatus {
+  status: AccountDeletionStatusValue;
+  refund_amount?: number;
+  currency?: string;
+  refresh_failed?: boolean;
+}
+
 export function getAccountDeletionPreview(token: string): Promise<AccountDeletionPreview> {
   return apiFetch<AccountDeletionPreview>('/api/v1/account/deletion/preview', { token });
 }
@@ -19,4 +33,8 @@ export function requestAccountDeletion(token: string): Promise<{ ok: boolean }> 
     method: 'POST',
     token,
   });
+}
+
+export function getAccountDeletionStatus(token: string): Promise<AccountDeletionStatus> {
+  return apiFetch<AccountDeletionStatus>('/api/v1/account/deletion/status', { token });
 }

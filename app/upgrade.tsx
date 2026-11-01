@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,7 +27,13 @@ const BENEFITS = [
 ];
 
 export default function Upgrade() {
-  const { token } = useAuth();
+  const {
+    token,
+    beginProActivationCheck,
+    clearProActivationStatus,
+    refreshUser,
+    verifyProActivation,
+  } = useAuth();
   const [cpfCnpj, setCpfCnpj] = useState('');
   const [billingType, setBillingType] = useState<BillingType>('PIX');
   const [couponCode, setCouponCode] = useState('');
@@ -45,14 +52,18 @@ export default function Upgrade() {
         couponCode: couponCode.trim() || undefined,
       });
       if (result.payment_url) {
+        beginProActivationCheck();
         await WebBrowser.openBrowserAsync(result.payment_url);
         router.back();
+        if (Platform.OS === 'ios') void verifyProActivation();
       } else if (result.coupon_applied) {
+        await refreshUser();
         router.back();
       } else {
         setError('Não foi possível iniciar o pagamento.');
       }
     } catch (e) {
+      clearProActivationStatus();
       setError(e instanceof ApiError ? e.message : 'Não foi possível iniciar o upgrade.');
     } finally {
       setIsSubmitting(false);

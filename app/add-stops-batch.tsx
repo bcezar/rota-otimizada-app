@@ -1,7 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { SafeAreaScreen } from '../src/components/SafeAreaScreen';
 import { useStops } from '../src/stops/StopsContext';
 import { colors } from '../src/theme/colors';
 
@@ -23,10 +25,17 @@ export default function AddStopsBatch() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaScreen style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Adicionar em lote</Text>
-        <Pressable onPress={() => router.back()}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Fechar"
+          hitSlop={8}
+          style={styles.closeButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="close" size={20} color={colors.textMuted} />
           <Text style={styles.closeText}>Fechar</Text>
         </Pressable>
       </View>
@@ -50,15 +59,15 @@ export default function AddStopsBatch() {
       >
         <Text style={styles.addButtonText}>Adicionar paradas</Text>
       </Pressable>
-    </View>
+    </SafeAreaScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: colors.background,
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     gap: 12,
   },
   header: {
@@ -66,14 +75,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  title: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
+  closeButton: {
+    minHeight: 44,
+    minWidth: 76,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
   closeText: {
     color: colors.textMuted,
     fontWeight: '600',
+    fontSize: 14,
+  },
+  title: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '700',
   },
   instructions: {
     color: colors.textMuted,
