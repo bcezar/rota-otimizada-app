@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -24,6 +24,7 @@ import { useStops } from '../../src/stops/StopsContext';
 import { colors } from '../../src/theme/colors';
 
 export default function Otimizar() {
+  const { editRoute } = useLocalSearchParams<{ editRoute?: string }>();
   const { token } = useAuth();
   const {
     stops,
@@ -36,9 +37,11 @@ export default function Otimizar() {
     fixedFirst,
     fixedLast,
     setLastResult,
+    lastResult,
     resetNavigation,
   } = useStops();
   const preferences = usePreferences();
+  const canEditStopAddress = !lastResult || editRoute === 'true';
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [error, setError] = useState('');
   const [guestUsage, setGuestUsage] = useState<AnonymousOptimizationUsage | null>(null);
@@ -104,6 +107,7 @@ export default function Otimizar() {
       );
       resetNavigation();
       setLastResult(result);
+      router.setParams({ editRoute: undefined });
       router.navigate('/navegacao');
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {
@@ -172,20 +176,41 @@ export default function Otimizar() {
           <Text style={styles.emptyText}>Adicione ao menos 2 paradas para otimizar.</Text>
         ) : (
           stops.map((item) => (
-            <Pressable
+            <View
               key={item.id}
               style={styles.stopCard}
-              onPress={() => router.push({ pathname: '/stop-detail', params: { id: item.id } })}
             >
-              <Ionicons name="location" size={20} color={colors.accent} />
-              <View style={styles.stopMain}>
-                <Text style={styles.stopAddress}>{item.placeName || item.address}</Text>
-                {item.placeName ? (
-                  <Text style={styles.stopSubtitle}>{item.address}</Text>
-                ) : null}
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.stopCardMain}
+                onPress={() => router.push({ pathname: '/stop-detail', params: { id: item.id } })}
+              >
+                <Ionicons name="location" size={20} color={colors.accent} />
+                <View style={styles.stopMain}>
+                  <Text style={styles.stopAddress}>{item.placeName || item.address}</Text>
+                  {item.placeName ? (
+                    <Text style={styles.stopSubtitle}>{item.address}</Text>
+                  ) : null}
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </Pressable>
+              {canEditStopAddress ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Editar endereço da parada ${item.placeName || item.address}`}
+                  hitSlop={6}
+                  style={styles.editAddressButton}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/stop-detail',
+                      params: { id: item.id, editAddress: 'true' },
+                    })
+                  }
+                >
+                  <Ionicons name="create-outline" size={19} color={colors.accent} />
+                </Pressable>
+              ) : null}
+            </View>
           ))
         )}
       </ScrollView>
@@ -263,6 +288,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   stopsHeaderText: {
+    flex: 1,
+    minWidth: 0,
     color: colors.textMuted,
     fontSize: 13,
     fontWeight: '600',
@@ -289,13 +316,28 @@ const styles = StyleSheet.create({
   stopCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
+  },
+  stopCardMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 48,
+  },
+  editAddressButton: {
+    width: 42,
+    height: 44,
+    marginLeft: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: colors.background,
   },
   stopMain: {
     flex: 1,
@@ -326,8 +368,10 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   optimizeButtonText: {
+    width: '100%',
     color: colors.onAccent,
     fontWeight: '600',
     fontSize: 16,
+    textAlign: 'center',
   },
 });

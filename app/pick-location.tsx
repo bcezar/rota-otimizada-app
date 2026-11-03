@@ -7,6 +7,7 @@ import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as routesApi from '../src/api/routes';
+import { OptionSheet } from '../src/components/OptionSheet';
 import { usePreferences } from '../src/preferences/PreferencesContext';
 import { useStops } from '../src/stops/StopsContext';
 import { colors } from '../src/theme/colors';
@@ -49,6 +50,8 @@ export default function PickLocation() {
   const [error, setError] = useState('');
   const [addedToast, setAddedToast] = useState(false);
   const [duplicateToast, setDuplicateToast] = useState(false);
+  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
+  const [mapTypeVisible, setMapTypeVisible] = useState(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestId = useRef(0);
   const lastQueriedCoords = useRef<{ lat: number; lng: number } | null>(null);
@@ -215,6 +218,7 @@ export default function PickLocation() {
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
         style={styles.map}
+        mapType={mapType}
         initialRegion={
           locationHint
             ? { ...FALLBACK_REGION, latitude: locationHint.lat, longitude: locationHint.lng }
@@ -228,6 +232,14 @@ export default function PickLocation() {
       <View pointerEvents="none" style={styles.pin}>
         <Ionicons name="location-sharp" size={42} color={colors.accent} />
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Camadas do mapa"
+        style={[styles.mapLayersButton, { top: insets.top + 12 }]}
+        onPress={() => setMapTypeVisible(true)}
+      >
+        <Ionicons name="layers-outline" size={20} color={colors.text} />
+      </Pressable>
 
       {addedToast ? (
         <View pointerEvents="none" style={[styles.addedToast, { top: insets.top + 12 }]}>
@@ -266,6 +278,16 @@ export default function PickLocation() {
           </Pressable>
         </View>
       </View>
+      <OptionSheet
+        visible={mapTypeVisible}
+        onClose={() => setMapTypeVisible(false)}
+        title="Camada do mapa"
+        options={[
+          { label: 'Padrão', onPress: () => setMapType('standard') },
+          { label: 'Satélite', onPress: () => setMapType('satellite') },
+          { label: 'Híbrido', onPress: () => setMapType('hybrid') },
+        ]}
+      />
     </View>
   );
 }
@@ -277,6 +299,19 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  mapLayersButton: {
+    position: 'absolute',
+    right: 16,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    elevation: 4,
   },
   pin: {
     position: 'absolute',

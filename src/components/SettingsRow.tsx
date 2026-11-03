@@ -41,14 +41,17 @@ const styles = StyleSheet.create({
   },
   texts: {
     flex: 1,
+    minWidth: 0,
     gap: 2,
   },
   label: {
     color: colors.text,
     fontSize: 14,
+    width: '100%',
   },
   value: {
     color: colors.textMuted,
     fontSize: 12,
+    width: '100%',
   },
 });

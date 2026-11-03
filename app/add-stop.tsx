@@ -324,9 +324,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   optionButtonText: {
+    width: '100%',
     color: colors.text,
     fontSize: 13,
     fontWeight: '600',
+    textAlign: 'center',
   },
   cancelButton: {
     alignItems: 'center',
@@ -334,7 +336,9 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
   },
   cancelButtonText: {
+    width: '100%',
     color: colors.textMuted,
     fontWeight: '600',
+    textAlign: 'center',
   },
 });

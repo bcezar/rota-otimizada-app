@@ -104,6 +104,15 @@ export default function Login() {
           <Text style={styles.devButtonText}>Login provisório (desenvolvimento)</Text>
         </Pressable>
       ) : null}
+      {__DEV__ ? (
+        <Pressable
+          style={styles.textDiagnosticLink}
+          accessibilityRole="button"
+          onPress={() => router.push('/debug-text')}
+        >
+          <Text style={styles.textDiagnosticLinkLabel}>Diagnóstico de texto (dev)</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -162,9 +171,11 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
+    width: '100%',
     color: colors.onAccent,
     fontWeight: '600',
     fontSize: 16,
+    textAlign: 'center',
   },
   guestButton: {
     borderWidth: 1,
@@ -174,7 +185,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
-  guestButtonText: { color: colors.text, fontWeight: '600', fontSize: 15 },
+  guestButtonText: {
+    width: '100%',
+    color: colors.text,
+    fontWeight: '600',
+    fontSize: 15,
+    textAlign: 'center',
+  },
   devButton: {
     borderWidth: 1,
     borderColor: colors.accent,
@@ -183,5 +200,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
-  devButtonText: { color: colors.accent, fontWeight: '600', fontSize: 14 },
+  devButtonText: {
+    width: '100%',
+    color: colors.accent,
+    fontWeight: '600',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  textDiagnosticLink: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  textDiagnosticLinkLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+  },
 });

@@ -355,16 +355,19 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     flex: 1,
+    minWidth: 0,
   },
   name: {
     color: colors.text,
     fontSize: 16,
     fontWeight: '700',
+    width: '100%',
   },
   email: {
     color: colors.textMuted,
     fontSize: 13,
     marginTop: 2,
+    width: '100%',
   },
   divider: {
     height: 1,
@@ -388,11 +391,13 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     lineHeight: 18,
+    width: '100%',
   },
   verifyPaymentText: {
     color: colors.accent,
     fontSize: 13,
     fontWeight: '700',
+    width: '100%',
   },
   planRow: {
     flexDirection: 'row',
@@ -407,10 +412,15 @@ const styles = StyleSheet.create({
   },
   planLabel: {
     color: colors.textMuted,
+    flex: 1,
+    minWidth: 0,
+    width: '100%',
   },
   planValue: {
     color: colors.text,
     fontWeight: '700',
+    minWidth: 48,
+    textAlign: 'right',
   },
   upgradeButton: {
     backgroundColor: colors.accent,
@@ -421,21 +431,26 @@ const styles = StyleSheet.create({
   upgradeButtonText: {
     color: colors.onAccent,
     fontWeight: '600',
+    width: '100%',
+    textAlign: 'center',
   },
   sectionTitle: {
     color: colors.text,
     fontSize: 15,
     fontWeight: '700',
+    width: '100%',
   },
   sectionNote: {
     color: colors.textMuted,
     fontSize: 12,
     marginBottom: 4,
+    width: '100%',
   },
   fieldLabel: {
     color: colors.textMuted,
     fontSize: 12,
     marginTop: 8,
+    width: '100%',
   },
   chipsRow: {
     flexDirection: 'row',
@@ -458,6 +473,8 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     fontWeight: '600',
+    width: '100%',
+    textAlign: 'center',
   },
   chipTextActive: {
     color: colors.onAccent,
@@ -468,6 +485,7 @@ const styles = StyleSheet.create({
   linkText: {
     color: colors.text,
     fontSize: 14,
+    width: '100%',
   },
   deleteButton: {
     alignItems: 'center',
@@ -476,6 +494,8 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     color: colors.danger,
     fontWeight: '600',
+    width: '100%',
+    textAlign: 'center',
   },
   logoutButton: {
     backgroundColor: colors.surface,
@@ -490,5 +510,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: '700',
     fontSize: 16,
+    width: '100%',
+    textAlign: 'center',
   },
 });

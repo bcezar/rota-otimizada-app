@@ -1,6 +1,6 @@
 # Rota Otimizada — App mobile: status atual
 
-Última atualização: 2026-10-31
+Última atualização: 2026-11-01
 
 ## Onde paramos
 
@@ -13,14 +13,14 @@ ok.
 
 | Aba / tela | Estado |
 |---|---|
-| **Navegação** | Mapa com localização atual, polyline da rota e pins numerados; painel com três níveis (15%, 50% e nível chamado 96%, com altura visual de 90%), arrastável pelo puxador com transição animada. No nível compacto mostra a parada ativa/próxima com ações; nos demais, lista rolável. Selecionar uma parada durante a navegação centraliza o mapa na parte visível; selecionar com o painel no nível 96% mantém esse nível. Menu inclui reiniciar, inverter, ajustar ordem e cancelar a rota. Implementado em 2026-10-28, ainda precisa validação visual no simulador. |
+| **Navegação** | Mapa com localização atual, polyline da rota e pins numerados; painel com três níveis (15%, 50% e nível chamado 96%, com altura visual de 90%), arrastável pelo puxador com transição animada. O título e o resumo da rota permanecem visíveis também no nível 96%. No nível compacto mostra a parada ativa/próxima com ações; nos demais, lista rolável. Inclui camadas padrão/satélite/híbrida, ponto azul da localização quando permitido e controle para centralizar. Menu inclui reiniciar, inverter, ajustar ordem, cancelar e exportar a rota em CSV/PDF com os detalhes das paradas. Implementado em 2026-11-01; validar visualmente e conferir os arquivos exportados no simulador/aparelho. |
 | **Endereços** | Livro de endereços completo (lista em cards, busca com autocomplete, detalhe com nome do local, notas, cliente, tags). Visitante mantém dados locais; usuários autenticados sincronizam com o backend e acessam a lista em outros dispositivos. Exclusões usam tombstones para sincronização offline. |
-| **Otimizar** | Tela principal de montagem de rota: Ponto de Partida, Destino Final, Adicionar parada, lista de paradas em cards com contador, botão Otimizar. Validado. |
+| **Otimizar** | Tela principal de montagem de rota: Ponto de Partida, Destino Final, Adicionar parada, lista de paradas em cards com contador e botão Otimizar. Um ícone de edição abre o detalhe com o endereço editável enquanto a rota está sendo montada; após otimizar, a edição reaparece ao entrar explicitamente em “Editar rota”. |
 | **Importar** | Importação CSV/XLS com preview e template. Validado. |
 | **Conta** | Perfil, plano, detalhes da assinatura Pro, upgrade (Asaas PIX/cartão/cupom), atualização automática do status Pro ao retornar ao app e aviso enquanto a confirmação do pagamento chega — validado no fluxo QA em 2026-10-30 —, preferências sincronizadas com o backend, FAQ, fale conosco, sobre, fluxo de exclusão e sair. |
 | Fluxo de adicionar parada | Busca por texto, ditado por voz em `pt-BR`, Mapa, Lote, Lista de endereços (com switch), Importar. Ditado implementado; falta validar o reconhecimento nos aparelhos. |
 | Detalhe da parada | Mesmas seções do endereço salvo (nome, notas, cliente, tags), aplicadas à parada da rota. Validado. |
-| Resultado | Lista ordenada, visitada/pulada, Google Maps, compartilhar, copiar. Validado. |
+| Resultado | Lista ordenada, visitada/pulada, Google Maps, compartilhar e copiar. A exportação para arquivo CSV/PDF fica no menu de opções da rota e inclui notas, nome do local, cliente, contatos e tags. |
 | Login | Magic link por e-mail com retorno móvel por deep link e troca de código temporário; callback ainda depende de development build para validar. Login provisório sem magic link disponível apenas em desenvolvimento e bloqueado por padrão no backend. |
 
 ## Decisões importantes
@@ -64,6 +64,15 @@ ok.
    O backend grava os motivos após o cancelamento e a tabela é criada
    automaticamente na inicialização; a tela precisa ser conferida com dados
    reais de uma assinatura.
+3. Validar no simulador/aparelho o cabeçalho persistente no painel 96%, edição
+   de endereço antes/depois de otimizar, exportação CSV/PDF, ponto azul e camadas
+   de mapa.
+4. **Distância por parada:** app e backend agora apresentam a distância de
+   chegada no cartão. ID 1 usa origem→ID 1 quando a origem existe e fica sem
+   valor quando a rota começa diretamente no ID 1; os IDs seguintes usam o
+   trecho da parada anterior até a atual. Se houver destino final, o último
+   cartão mostra última parada→destino; sem destino, mostra parada anterior→última.
+   Validar com rotas com/sem origem e com/sem destino.
 
 **Para depois:**
 - **Excluir conta — implementado com reembolso; revisão jurídica pendente:**
@@ -91,7 +100,6 @@ ok.
   manter contraste e legibilidade nos dois temas.
 
 **Adiadas:**
-- Exportar paradas para CSV (existe no site, não portado).
 - Notificações push e Live Activities: plano futuro.
 - Biometria para acesso: boa possibilidade futura, ainda sem plano definido.
 - i18n/idiomas: fora do escopo por enquanto.

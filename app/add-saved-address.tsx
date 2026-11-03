@@ -11,6 +11,7 @@ import {
 
 import { useAddressBook } from '../src/addressBook/AddressBookContext';
 import * as routesApi from '../src/api/routes';
+import { SafeAreaScreen } from '../src/components/SafeAreaScreen';
 import { useDebouncedValue } from '../src/hooks/useDebouncedValue';
 import { colors } from '../src/theme/colors';
 
@@ -57,10 +58,16 @@ export default function AddSavedAddress() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaScreen style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Adicionar endereço</Text>
-        <Pressable onPress={() => router.back()}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Fechar"
+          hitSlop={8}
+          style={styles.closeButton}
+          onPress={() => router.back()}
+        >
           <Text style={styles.closeText}>Fechar</Text>
         </Pressable>
       </View>
@@ -89,7 +96,7 @@ export default function AddSavedAddress() {
           </Pressable>
         ))}
       </View>
-    </View>
+    </SafeAreaScreen>
   );
 }
 
@@ -97,7 +104,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     gap: 12,
   },
   header: {
@@ -113,6 +121,13 @@ const styles = StyleSheet.create({
   closeText: {
     color: colors.textMuted,
     fontWeight: '600',
+  },
+  closeButton: {
+    minHeight: 44,
+    minWidth: 76,
+    paddingHorizontal: 8,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   input: {
     borderWidth: 1,

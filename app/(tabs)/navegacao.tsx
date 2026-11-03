@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Location from 'expo-location';
+import * as Print from 'expo-print';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -22,6 +24,7 @@ import {
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Sharing from 'expo-sharing';
 
 import { useAddressBook } from '../../src/addressBook/AddressBookContext';
 import * as routesApi from '../../src/api/routes';
@@ -32,6 +35,8 @@ import { OptionSheet } from '../../src/components/OptionSheet';
 import { usePreferences } from '../../src/preferences/PreferencesContext';
 import { useStops } from '../../src/stops/StopsContext';
 import { formatRouteText } from '../../src/stops/formatRoute';
+import { buildRouteCsv, buildRoutePdfHtml } from '../../src/stops/exportRoute';
+import { distanceDisplayedOnStop } from '../../src/stops/routeDistances';
 import { mapRouteStopsToLocalStops } from '../../src/stops/routeStopMapping';
 import { colors } from '../../src/theme/colors';
 
@@ -80,6 +85,8 @@ export default function Navegacao() {
   const { addresses, addAddress, updateAddress } = useAddressBook();
   const { navigationApp, defaultOrigin, defaultDestination } = usePreferences();
   const [currentLocationRegion, setCurrentLocationRegion] = useState<Region | null>(null);
+  const [hasLocationPermission, setHasLocationPermission] = useState(false);
+  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
   const [mapInitialCenterReady, setMapInitialCenterReady] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [polyline, setPolyline] = useState<Coordinates[] | null>(null);
@@ -89,6 +96,9 @@ export default function Navegacao() {
   const [deleteVisible, setDeleteVisible] = useState(false);
   const [navigationAppVisible, setNavigationAppVisible] = useState(false);
   const [routeActionsVisible, setRouteActionsVisible] = useState(false);
+  const [exportFormatVisible, setExportFormatVisible] = useState(false);
+  const [isExportingRoute, setIsExportingRoute] = useState(false);
+  const [mapTypeVisible, setMapTypeVisible] = useState(false);
   const [saveRouteVisible, setSaveRouteVisible] = useState(false);
   const [saveRouteName, setSaveRouteName] = useState('');
   const [isSavingRoute, setIsSavingRoute] = useState(false);
@@ -251,6 +261,7 @@ export default function Navegacao() {
       if (cancelled) return;
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
+        setHasLocationPermission(status === 'granted');
         if (status !== 'granted') {
           setMapInitialCenterReady(true);
           return;
@@ -278,6 +289,16 @@ export default function Navegacao() {
       cancelled = true;
     };
   }, [initialReferenceAddress, isHydrated, lastResult, locationHint]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Location.getForegroundPermissionsAsync().then(({ granted }) => {
+      if (!cancelled) setHasLocationPermission(granted);
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!mapReady || !currentLocationRegion || lastResult) return;
@@ -481,6 +502,69 @@ export default function Navegacao() {
     Alert.alert('Rota copiada', 'O resumo da rota foi copiado.');
   }
 
+  async function handleExportRoute(format: 'csv' | 'pdf') {
+    if (!lastResult) return;
+    setIsExportingRoute(true);
+    try {
+      if (format === 'csv') {
+        const directory = FileSystem.cacheDirectory;
+        if (!directory) throw new Error('O armazenamento temporário não está disponível.');
+        const fileUri = `${directory}rota-otimizada-${Date.now()}.csv`;
+        await FileSystem.writeAsStringAsync(fileUri, buildRouteCsv(lastResult, stops, routeStopStatuses));
+        if (!(await Sharing.isAvailableAsync())) {
+          throw new Error('O compartilhamento de arquivos não está disponível neste aparelho.');
+        }
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Exportar rota CSV',
+          UTI: 'public.comma-separated-values-text',
+        });
+      } else {
+        const { uri } = await Print.printToFileAsync({
+          html: buildRoutePdfHtml(lastResult, stops, routeStopStatuses),
+        });
+        if (!(await Sharing.isAvailableAsync())) {
+          throw new Error('O compartilhamento de arquivos não está disponível neste aparelho.');
+        }
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Exportar rota PDF',
+          UTI: 'com.adobe.pdf',
+        });
+      }
+    } catch (error) {
+      Alert.alert(
+        'Não foi possível exportar a rota',
+        error instanceof Error ? error.message : 'Tente novamente em instantes.',
+      );
+    } finally {
+      setIsExportingRoute(false);
+    }
+  }
+
+  async function handleShowCurrentLocation() {
+    try {
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (!permission.granted) permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Localização desativada', 'Permita o acesso à localização para mostrar sua posição no mapa.');
+        return;
+      }
+      setHasLocationPermission(true);
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const region: Region = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      setCurrentLocationRegion(region);
+      mapRef.current?.animateToRegion(region, 450);
+    } catch {
+      Alert.alert('Localização indisponível', 'Não foi possível obter sua posição atual.');
+    }
+  }
+
   const settingsOptions = [
     { label: 'Editar', onPress: handleEditStop },
     {
@@ -508,13 +592,24 @@ export default function Navegacao() {
   ];
 
   const routeActionOptions = [
-    { label: 'Editar rota', onPress: () => router.navigate('/otimizar') },
+    {
+      label: 'Editar rota',
+      onPress: () => router.navigate({ pathname: '/otimizar', params: { editRoute: 'true' } }),
+    },
     { label: 'Salvar rota', onPress: openSaveRoute },
     { label: 'Rotas salvas', onPress: () => router.push('/saved-routes') },
     { label: 'Reiniciar rota', onPress: restartNavigation },
     { label: 'Inverter rota', onPress: confirmRouteReverse },
     { label: 'Ajustar ordem', onPress: () => router.push('/reorder-route') },
     { label: 'Cancelar rota', onPress: handleCancelRoute },
+    {
+      label: isExportingRoute ? 'Preparando exportação…' : 'Exportar rota',
+      onPress: () => {
+        setRouteActionsVisible(false);
+        setExportFormatVisible(true);
+      },
+      disabled: isExportingRoute,
+    },
     { label: 'Compartilhar rota', onPress: () => void shareRoute() },
     { label: 'Copiar rota', onPress: () => void copyRoute() },
     ...(lastResult?.maps_url
@@ -591,6 +686,9 @@ export default function Navegacao() {
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
           style={styles.map}
+          mapType={mapType}
+          showsUserLocation={hasLocationPermission}
+          showsMyLocationButton={false}
           initialRegion={initialRegion}
           onMapReady={() => setMapReady(true)}
         >
@@ -671,12 +769,28 @@ export default function Navegacao() {
 
       <Pressable
         style={[styles.searchBar, { top: insets.top + 10 }]}
-        onPress={() => router.navigate('/otimizar')}
+        onPress={() => router.navigate({ pathname: '/otimizar', params: { editRoute: 'true' } })}
       >
         <Ionicons name="search" size={18} color={colors.textMuted} />
         <Text style={styles.searchPlaceholder}>
           {lastResult ? 'Editar rota' : 'Para onde vamos?'}
         </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Camadas do mapa"
+        style={[styles.mapLayersButton, { top: insets.top + 68 }]}
+        onPress={() => setMapTypeVisible(true)}
+      >
+        <Ionicons name="layers-outline" size={20} color={colors.text} />
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Mostrar minha localização"
+        style={[styles.currentLocationButton, { top: insets.top + 126 }]}
+        onPress={() => void handleShowCurrentLocation()}
+      >
+        <Ionicons name={hasLocationPermission ? 'locate' : 'locate-outline'} size={20} color={colors.text} />
       </Pressable>
       <Pressable
         accessibilityLabel="Rotas salvas"
@@ -710,7 +824,7 @@ export default function Navegacao() {
           >
             <View style={styles.dragHandle} />
           </View>
-          {routePanelLevel === 50 ? (
+          {routePanelLevel === 50 || routePanelLevel === 96 ? (
             <View style={styles.routeHeader}>
               <View style={styles.routeHeaderText}>
                 <Text style={styles.routeTitle}>Rota otimizada</Text>
@@ -773,6 +887,7 @@ export default function Navegacao() {
               const status = routeStopStatuses[stop.order];
               const isActive = isNavigationStarted && activeStopOrder === stop.order;
               const isPast = isNavigationStarted && !!status && !isActive;
+              const distanceToDisplay = distanceDisplayedOnStop(lastResult, orderedStops, stop.order);
               return (
                 <View
                   key={stop.order}
@@ -833,8 +948,8 @@ export default function Navegacao() {
                         <Text style={styles.visitedLabel}>Visitada</Text>
                       ) : null}
                     </View>
-                    {stop.leg_distance_km != null && routePanelLevel !== 15 ? (
-                      <Text style={styles.legDistance}>{stop.leg_distance_km.toFixed(1)} km</Text>
+                    {distanceToDisplay != null && routePanelLevel !== 15 ? (
+                      <Text style={styles.legDistance}>{distanceToDisplay.toFixed(1)} km</Text>
                     ) : null}
                     {routePanelLevel !== 15 ? (
                       <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
@@ -980,6 +1095,25 @@ export default function Navegacao() {
         title="Opções da rota"
         options={routeActionOptions}
       />
+      <OptionSheet
+        visible={exportFormatVisible}
+        onClose={() => setExportFormatVisible(false)}
+        title="Escolha o formato da exportação"
+        options={[
+          { label: 'PDF', onPress: () => void handleExportRoute('pdf') },
+          { label: 'CSV', onPress: () => void handleExportRoute('csv') },
+        ]}
+      />
+      <OptionSheet
+        visible={mapTypeVisible}
+        onClose={() => setMapTypeVisible(false)}
+        title="Camada do mapa"
+        options={[
+          { label: 'Padrão', onPress: () => setMapType('standard') },
+          { label: 'Satélite', onPress: () => setMapType('satellite') },
+          { label: 'Híbrido', onPress: () => setMapType('hybrid') },
+        ]}
+      />
     </View>
   );
 }
@@ -988,7 +1122,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   map: StyleSheet.absoluteFill,
   mapCentering: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
@@ -1028,7 +1166,12 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
-  searchPlaceholder: { color: colors.textMuted, fontSize: 15 },
+  searchPlaceholder: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.textMuted,
+    fontSize: 15,
+  },
   savedRoutesButton: {
     position: 'absolute',
     right: 16,
@@ -1044,6 +1187,32 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
+    elevation: 4,
+  },
+  mapLayersButton: {
+    position: 'absolute',
+    right: 16,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    elevation: 4,
+  },
+  currentLocationButton: {
+    position: 'absolute',
+    right: 16,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
     elevation: 4,
   },
   saveRouteBackdrop: {

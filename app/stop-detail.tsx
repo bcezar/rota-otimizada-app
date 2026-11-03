@@ -16,7 +16,7 @@ import { useStops } from '../src/stops/StopsContext';
 import { colors } from '../src/theme/colors';
 
 export default function StopDetail() {
-  const { id, source } = useLocalSearchParams<{ id: string; source?: string }>();
+  const { id, source, editAddress } = useLocalSearchParams<{ id: string; source?: string; editAddress?: string }>();
   const { stops, updateStop, removeStop } = useStops();
   const current = stops.find((item) => item.id === id);
   const [newTag, setNewTag] = useState('');
@@ -81,7 +81,19 @@ export default function StopDetail() {
       {/* Seção 1 — Local */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Endereço</Text>
-        <Text style={styles.sectionSubtitle}>{current.address}</Text>
+        {editAddress === 'true' ? (
+          <TextInput
+            accessibilityLabel="Endereço da parada"
+            autoCapitalize="sentences"
+            style={styles.input}
+            placeholder="Digite o endereço"
+            placeholderTextColor={colors.textMuted}
+            value={current.address}
+            onChangeText={(address) => updateStop(current.id, { address })}
+          />
+        ) : (
+          <Text style={styles.sectionSubtitle}>{current.address}</Text>
+        )}
         <TextInput
           style={styles.input}
           placeholder="Nome do Local"

@@ -91,9 +91,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   label: {
+    width: '100%',
     fontSize: 11,
     color: colors.textMuted,
     fontWeight: '600',
+    textAlign: 'center',
   },
   labelActive: {
     color: colors.accent,
@@ -117,9 +119,11 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   centerLabel: {
+    width: '100%',
     fontSize: 11,
     color: colors.accent,
     fontWeight: '700',
     marginTop: 2,
+    textAlign: 'center',
   },
 });

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FlatList, Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import { formatRouteText } from '../src/stops/formatRoute';
+import { distanceDisplayedOnStop, distanceLabelForStop } from '../src/stops/routeDistances';
 import { useStops } from '../src/stops/StopsContext';
 import { colors } from '../src/theme/colors';
 
@@ -119,6 +120,12 @@ export default function Result() {
           const isVisited = !!visited[item.order];
           const isSkipped = !!skipped[item.order];
           const description = stops.find((s) => s.address === item.original_address)?.description;
+          const distanceToDisplay = distanceDisplayedOnStop(
+            lastResult,
+            lastResult.optimized_route,
+            item.order,
+          );
+          const distanceLabel = distanceLabelForStop(lastResult, lastResult.optimized_route, item.order);
           return (
             <View style={[styles.stopRow, isSkipped && styles.stopRowSkipped]}>
               <View style={[styles.badge, isVisited && styles.badgeVisited]}>
@@ -129,8 +136,8 @@ export default function Result() {
                   {description ? `${description} — ` : ''}
                   {item.original_address}
                 </Text>
-                {item.leg_distance_km != null ? (
-                  <Text style={styles.legText}>{item.leg_distance_km.toFixed(1)} km até a próxima</Text>
+                {distanceToDisplay != null ? (
+                  <Text style={styles.legText}>{distanceToDisplay.toFixed(1)} km {distanceLabel}</Text>
                 ) : null}
               </View>
               <Pressable onPress={() => toggleVisited(item.order)}>

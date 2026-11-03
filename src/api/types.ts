@@ -47,6 +47,8 @@ export interface RouteResponse {
   optimized_route: RouteStop[];
   total_distance_km: number;
   total_duration_min: number | null;
+  origin_to_first_stop_distance_km?: number | null;
+  last_stop_to_destination_distance_km?: number | null;
   geocoding_failures: string[];
   maps_url: string | null;
   origin: OriginInfo | null;
