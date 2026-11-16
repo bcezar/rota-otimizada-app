@@ -256,6 +256,9 @@ const styles = StyleSheet.create({
   typeButtonText: {
     color: colors.text,
     fontWeight: '600',
+    paddingRight: 4,
+    width: '100%',
+    textAlign: 'center',
   },
   typeButtonTextActive: {
     color: colors.onAccent,
@@ -272,10 +275,16 @@ const styles = StyleSheet.create({
   dropzoneTitle: {
     color: colors.text,
     fontWeight: '600',
+    width: '100%',
+    paddingHorizontal: 4,
+    textAlign: 'center',
   },
   dropzoneHint: {
     color: colors.textMuted,
     fontSize: 12,
+    width: '100%',
+    paddingHorizontal: 4,
+    textAlign: 'center',
   },
   selectedFileRow: {
     flexDirection: 'row',
@@ -296,11 +305,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     padding: 8,
+    width: '100%',
+    textAlign: 'center',
   },
   templateButtonText: {
     color: colors.accent,
     fontWeight: '600',
     fontSize: 13,
+    paddingRight: 4,
+    width: '100%'
   },
   importButton: {
     backgroundColor: colors.accent,
@@ -315,6 +328,9 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontWeight: '600',
     fontSize: 16,
+    paddingRight: 4,
+    width: '100%',
+    textAlign: 'center',
   },
   replaceButton: {
     backgroundColor: colors.dangerMuted,

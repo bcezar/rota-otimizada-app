@@ -268,10 +268,10 @@ const styles = StyleSheet.create({
   routeName: { color: colors.text, fontSize: 16, fontWeight: '700' },
   routeSummary: { color: colors.textMuted, fontSize: 12 },
   deleteButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  useButton: { backgroundColor: colors.accent, minHeight: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  useButtonText: { color: colors.onAccent, fontWeight: '700', fontSize: 15 },
+  useButton: { backgroundColor: colors.accent, minHeight: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 8, textAlign: 'center', width: '100%' },
+  useButtonText: { color: colors.onAccent, fontWeight: '700', fontSize: 15, width: '100%', textAlign: 'center' },
   messageContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 12 },
-  messageTitle: { color: colors.text, fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  messageTitle: { color: colors.text, fontSize: 17, fontWeight: '700', textAlign: 'center', width: '100%' },
   messageText: { color: colors.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 8 },
   error: { color: colors.danger, padding: 20, textAlign: 'center' },
 });

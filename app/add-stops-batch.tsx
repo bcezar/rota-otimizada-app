@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    width: '100%',
   },
   closeButton: {
     minHeight: 44,
@@ -88,11 +89,13 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontWeight: '600',
     fontSize: 14,
+    paddingRight: 4,
   },
   title: {
     color: colors.text,
     fontSize: 18,
     fontWeight: '700',
+    flex: 1,
   },
   instructions: {
     color: colors.textMuted,
@@ -122,5 +125,8 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontWeight: '600',
     fontSize: 16,
+    paddingRight: 4,
+    width: '100%',
+    textAlign: 'center',
   },
 });

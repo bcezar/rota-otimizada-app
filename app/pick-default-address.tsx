@@ -190,6 +190,8 @@ const styles = StyleSheet.create({
   closeText: {
     color: colors.textMuted,
     fontWeight: '600',
+    width: '100%',
+    textAlign: 'center',
   },
   closeButton: {
     minHeight: 44,

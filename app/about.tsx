@@ -45,15 +45,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    width: '100%',
   },
   title: {
     color: colors.text,
     fontSize: 20,
     fontWeight: '700',
+    flex: 1,
   },
   closeText: {
     color: colors.textMuted,
     fontWeight: '600',
+    width: '100%',
   },
   closeButton: {
     minHeight: 44,

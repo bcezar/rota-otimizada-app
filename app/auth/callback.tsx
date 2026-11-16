@@ -63,6 +63,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 23,
     textAlign: 'center',
+    width: '100%',
+    paddingHorizontal: 4,
   },
   button: {
     backgroundColor: colors.accent,
@@ -74,5 +76,6 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontWeight: '600',
     fontSize: 16,
+    paddingRight: 4,
   },
 });

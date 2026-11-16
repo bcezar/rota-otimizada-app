@@ -117,6 +117,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 18,
     fontWeight: '700',
+    flex: 1,
   },
   closeText: {
     color: colors.textMuted,

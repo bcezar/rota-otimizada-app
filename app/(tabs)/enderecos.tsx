@@ -89,6 +89,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 20,
     fontWeight: '700',
+    flex: 1,
   },
   syncHint: { color: colors.textMuted, fontSize: 12, marginBottom: 10 },
   syncWarning: { marginBottom: 10 },

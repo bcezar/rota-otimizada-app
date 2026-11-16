@@ -3,6 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -161,7 +162,8 @@ export default function Subscription() {
   }
 
   const subscription = account?.subscription;
-  const isActive = subscription?.status?.toUpperCase() === 'ACTIVE';
+  const isActive = ['ACTIVE', 'IN_GRACE_PERIOD'].includes(subscription?.status?.toUpperCase() ?? '');
+  const isGooglePlaySubscription = subscription?.provider === 'google_play';
   const expirationDate = account?.user.pro_expires_at ?? null;
   const remainsProAfterCancellation = !!account?.user.is_pro && !!expirationDate && !isActive;
 
@@ -227,11 +229,21 @@ export default function Subscription() {
             {isActive ? (
               <>
                 <View style={styles.divider} />
-                <InfoRow label="Valor" value={`${formatCurrency(subscription?.value, subscription?.currency)} / mês`} />
-                <InfoRow label="Forma de pagamento" value={formatPaymentMethod(subscription?.billingType)} />
+                <InfoRow
+                  label="Valor"
+                  value={isGooglePlaySubscription
+                    ? 'Conforme exibido pela Google Play'
+                    : `${formatCurrency(subscription?.value, subscription?.currency)} / mês`}
+                />
+                <InfoRow
+                  label="Forma de pagamento"
+                  value={isGooglePlaySubscription ? 'Google Play' : formatPaymentMethod(subscription?.billingType)}
+                />
                 <InfoRow label="Próxima cobrança" value={formatDate(subscription?.nextDueDate)} />
                 <Text style={styles.note}>
-                  Ao cancelar, novas cobranças serão interrompidas e seu acesso Pro continuará até {accessDate}.
+                  {isGooglePlaySubscription
+                    ? `A cobrança é gerenciada pela Google Play. Se cancelar lá, o acesso Pro continua até ${accessDate}.`
+                    : `Ao cancelar, novas cobranças serão interrompidas e seu acesso Pro continuará até ${accessDate}.`}
                 </Text>
               </>
             ) : remainsProAfterCancellation ? (
@@ -262,7 +274,7 @@ export default function Subscription() {
                 {deletionStatus.status === 'awaiting_confirmation'
                   ? 'Aguardando você confirmar o pedido pelo link enviado por e-mail. Sua conta continua ativa até essa confirmação.'
                   : deletionStatus.status === 'awaiting_authorization'
-                    ? 'O reembolso aguarda autorização no Asaas. A exclusão será concluída depois que o reembolso for processado.'
+                    ? 'O reembolso aguarda uma ação no provedor de pagamento. A exclusão será concluída depois que o reembolso for processado.'
                     : deletionStatus.status === 'refund_completed'
                       ? 'O reembolso foi confirmado. Estamos finalizando a exclusão da conta.'
                       : 'O reembolso está em processamento. A exclusão será concluída após a confirmação do provedor de pagamento.'}
@@ -288,7 +300,18 @@ export default function Subscription() {
             <Text style={styles.errorText}>{deletionStatusError}</Text>
           ) : null}
 
-          {isActive ? (
+          {isGooglePlaySubscription && account.user.is_pro ? (
+            <Pressable
+              style={styles.cancelButton}
+              onPress={() =>
+                void Linking.openURL(
+                  'https://play.google.com/store/account/subscriptions?sku=rota_pro_monthly&package=br.com.rotaotimizada.app',
+                )
+              }
+            >
+              <Text style={styles.cancelButtonText}>Gerenciar assinatura na Google Play</Text>
+            </Pressable>
+          ) : isActive ? (
             <Pressable style={styles.cancelButton} onPress={() => setConfirmationVisible(true)}>
               <Text style={styles.cancelButtonText}>Cancelar plano</Text>
             </Pressable>

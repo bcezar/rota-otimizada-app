@@ -332,6 +332,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
+    paddingRight: 4,
   },
   duplicateToast: {
     position: 'absolute',
@@ -352,6 +353,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
+    flexShrink: 1,
+    paddingRight: 4,
   },
   duplicateToastActions: {
     flexDirection: 'row',
@@ -395,6 +398,9 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: colors.text,
     fontWeight: '600',
+    paddingRight: 4,
+    width: '100%',
+    textAlign: 'center',
   },
   confirmButton: {
     flex: 1,
@@ -409,5 +415,8 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     color: colors.onAccent,
     fontWeight: '600',
+    paddingRight: 4,
+    width: '100%',
+    textAlign: 'center',
   },
 });

@@ -42,6 +42,9 @@ const VEHICLE_TYPES: { value: VehicleType; label: string }[] = [
   { value: 'bicycle', label: 'Bicicleta' },
 ];
 
+// Espaços sem quebra dão ao Text uma pequena folga após o último glifo no Android.
+const ANDROID_TEXT_WIDTH_GUARD = '\u00A0\u00A0';
+
 export default function Conta() {
   const {
     user,
@@ -148,14 +151,20 @@ export default function Conta() {
               >
                 <Text style={styles.planLabel}>Plano atual</Text>
                 <View style={styles.planValueRow}>
-                  <Text style={styles.planValue}>{planLabel}</Text>
+                  <Text style={styles.planValue}>
+                    {planLabel}
+                    {ANDROID_TEXT_WIDTH_GUARD}
+                  </Text>
                   <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </View>
               </Pressable>
             ) : (
               <View style={styles.planRow}>
                 <Text style={styles.planLabel}>Plano atual</Text>
-                <Text style={styles.planValue}>{planLabel}</Text>
+                <Text style={styles.planValue}>
+                  {planLabel}
+                  {ANDROID_TEXT_WIDTH_GUARD}
+                </Text>
               </View>
             )}
 
@@ -212,7 +221,8 @@ export default function Conta() {
                   navigationApp === item.value && styles.chipTextActive,
                 ]}
               >
-                {item.label}
+                {item.label.replace(/ /g, '\u00A0')}
+                {ANDROID_TEXT_WIDTH_GUARD}
               </Text>
             </Pressable>
           ))}
@@ -230,6 +240,7 @@ export default function Conta() {
                 style={[styles.chipText, distanceUnit === item.value && styles.chipTextActive]}
               >
                 {item.label}
+                {ANDROID_TEXT_WIDTH_GUARD}
               </Text>
             </Pressable>
           ))}
@@ -247,6 +258,7 @@ export default function Conta() {
                 style={[styles.chipText, vehicleType === item.value && styles.chipTextActive]}
               >
                 {item.label}
+                {ANDROID_TEXT_WIDTH_GUARD}
               </Text>
             </Pressable>
           ))}
@@ -414,12 +426,12 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     flex: 1,
     minWidth: 0,
-    width: '100%',
   },
   planValue: {
     color: colors.text,
     fontWeight: '700',
-    minWidth: 48,
+    minWidth: 80,
+    flexShrink: 0,
     textAlign: 'right',
   },
   upgradeButton: {
@@ -460,6 +472,8 @@ const styles = StyleSheet.create({
   chip: {
     paddingVertical: 8,
     paddingHorizontal: 14,
+    alignSelf: 'flex-start',
+    flexShrink: 0,
     borderRadius: 100,
     borderWidth: 1,
     borderColor: colors.border,
@@ -473,7 +487,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     fontWeight: '600',
-    width: '100%',
+    flexShrink: 0,
     textAlign: 'center',
   },
   chipTextActive: {

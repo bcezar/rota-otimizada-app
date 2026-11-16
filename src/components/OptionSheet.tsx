@@ -97,5 +97,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: colors.textMuted,
     fontWeight: '600',
+    width: '100%',
+    textAlign: 'center',
   },
 });

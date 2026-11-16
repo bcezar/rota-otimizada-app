@@ -2,6 +2,7 @@ module.exports = ({ config }) => ({
   ...config,
   plugins: [
     ...(config.plugins ?? []),
+    'expo-iap',
     [
       'react-native-maps',
       {

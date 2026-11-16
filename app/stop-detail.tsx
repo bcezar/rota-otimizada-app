@@ -156,7 +156,7 @@ export default function StopDetail() {
             onSubmitEditing={handleAddTag}
           />
           <Pressable style={styles.addTagButton} onPress={handleAddTag}>
-            <Text style={styles.addTagButtonText}>Adicionar</Text>
+            <Text style={styles.addTagButtonText}>Adicionar {'\u00A0'}</Text>
           </Pressable>
         </View>
       </View>
@@ -192,10 +192,13 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 18,
     fontWeight: '700',
+    paddingRight: 4,
+    flex: 1,
   },
   closeText: {
     color: colors.textMuted,
     fontWeight: '600',
+    paddingRight: 4,
   },
   closeButton: {
     minHeight: 44,
@@ -281,6 +284,9 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontWeight: '600',
     fontSize: 13,
+    paddingRight: 6,
+    width: '100%',
+    textAlign: 'center',
   },
   deleteButton: {
     alignItems: 'center',
@@ -289,5 +295,7 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     color: colors.danger,
     fontWeight: '600',
+    width: '100%',
+    textAlign: 'center',
   },
 });

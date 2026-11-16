@@ -138,13 +138,19 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontWeight: '600',
     fontSize: 16,
+    width: '100%',
+    textAlign: 'center',
   },
   cancelButton: {
     alignItems: 'center',
     padding: 14,
+    width: '100%',
+    textAlign: 'center',
   },
   cancelButtonText: {
     color: colors.textMuted,
     fontWeight: '600',
+    width: '100%',
+    textAlign: 'center',
   },
 });

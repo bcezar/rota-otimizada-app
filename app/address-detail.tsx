@@ -177,12 +177,14 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 18,
     fontWeight: '700',
-    flexShrink: 1,
+    flexShrink: 0,
     marginRight: 8,
+    paddingRight: 4,
   },
   closeText: {
     color: colors.textMuted,
     fontWeight: '600',
+    paddingRight: 4,
   },
   closeButton: {
     minHeight: 44,
@@ -279,6 +281,7 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontWeight: '600',
     fontSize: 13,
+    paddingRight: 4,
   },
   deleteButton: {
     alignItems: 'center',

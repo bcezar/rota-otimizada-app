@@ -32,6 +32,23 @@ export function checkout(token: string, params: CheckoutParams): Promise<Checkou
   });
 }
 
+export function verifyGooglePlayPurchase(
+  token: string,
+  params: { productId: string; purchaseToken: string },
+): Promise<{ ok: boolean; pro_expires_at: string | null }> {
+  return apiFetch<{ ok: boolean; pro_expires_at: string | null }>(
+    '/api/v1/billing/google-play/verify',
+    {
+      method: 'POST',
+      token,
+      body: {
+        product_id: params.productId,
+        purchase_token: params.purchaseToken,
+      },
+    },
+  );
+}
+
 export function cancelSubscription(
   token: string,
   reasonCodes: SubscriptionCancellationReason[] = [],
