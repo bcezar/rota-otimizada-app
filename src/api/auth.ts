@@ -8,6 +8,13 @@ export function requestMagicLink(email: string): Promise<{ ok: boolean }> {
   });
 }
 
+export function verifyMagicCode(email: string, code: string): Promise<LoginResponse> {
+  return apiFetch<LoginResponse>('/api/v1/auth/verify-code', {
+    method: 'POST',
+    body: { email, code },
+  });
+}
+
 export function provisionalDevLogin(email: string): Promise<LoginResponse> {
   return apiFetch<LoginResponse>('/api/v1/auth/login', {
     method: 'POST',

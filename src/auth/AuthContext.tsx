@@ -29,6 +29,7 @@ interface AuthContextValue {
   verifyProActivation: () => Promise<void>;
   clearProActivationStatus: () => void;
   requestLoginLink: (email: string) => Promise<void>;
+  verifyLoginCode: (email: string, code: string) => Promise<void>;
   provisionalDevLogin: (email: string) => Promise<void>;
   completeLogin: (session: LoginResponse) => Promise<void>;
   continueAsGuest: () => Promise<void>;
@@ -134,6 +135,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authApi.requestMagicLink(email);
   }
 
+  async function verifyLoginCode(email: string, code: string) {
+    const session = await authApi.verifyMagicCode(email, code);
+    await completeLogin(session);
+  }
+
   async function provisionalDevLogin(email: string) {
     const session = await authApi.provisionalDevLogin(email);
     await completeLogin(session);
@@ -174,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       verifyProActivation,
       clearProActivationStatus,
       requestLoginLink,
+      verifyLoginCode,
       provisionalDevLogin,
       completeLogin,
       continueAsGuest,
