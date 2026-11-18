@@ -62,10 +62,12 @@ interface StopsContextValue {
   setLastResult: (result: RouteResponse | null) => void;
   isNavigationStarted: boolean;
   activeStopOrder: number | null;
+  isDestinationActive: boolean;
   routeStopStatuses: Record<number, RouteStopStatus>;
   startNavigation: () => void;
   restartNavigation: () => void;
   selectRouteStop: (order: number) => void;
+  selectRouteDestination: () => void;
   markRouteStop: (order: number, status: RouteStopStatus) => void;
   resetNavigation: () => void;
 }
@@ -122,6 +124,7 @@ export function StopsProvider({ children }: { children: ReactNode }) {
   const [lastResult, setLastResult] = useState<RouteResponse | null>(null);
   const [isNavigationStarted, setIsNavigationStarted] = useState(false);
   const [activeStopOrder, setActiveStopOrder] = useState<number | null>(null);
+  const [isDestinationActive, setIsDestinationActive] = useState(false);
   const [routeStopStatuses, setRouteStopStatuses] = useState<Record<number, RouteStopStatus>>({});
   const hasLoaded = useRef(false);
 
@@ -261,6 +264,7 @@ export function StopsProvider({ children }: { children: ReactNode }) {
   function resetNavigation() {
     setIsNavigationStarted(false);
     setActiveStopOrder(null);
+    setIsDestinationActive(false);
     setRouteStopStatuses({});
   }
 
@@ -270,6 +274,7 @@ export function StopsProvider({ children }: { children: ReactNode }) {
       .sort((a, b) => a.order - b.order)[0];
     setRouteStopStatuses({});
     setActiveStopOrder(firstStop?.order ?? null);
+    setIsDestinationActive(false);
     setIsNavigationStarted(true);
   }
 
@@ -283,13 +288,21 @@ export function StopsProvider({ children }: { children: ReactNode }) {
       .sort((a, b) => a.order - b.order)[0];
     setRouteStopStatuses({});
     setActiveStopOrder(firstStop?.order ?? null);
+    setIsDestinationActive(false);
   }
 
   function selectRouteStop(order: number) {
     if (!isNavigationStarted || !lastResult?.optimized_route.some((stop) => stop.order === order)) {
       return;
     }
+    setIsDestinationActive(false);
     setActiveStopOrder(order);
+  }
+
+  function selectRouteDestination() {
+    if (!isNavigationStarted || !lastResult?.destination) return;
+    setActiveStopOrder(null);
+    setIsDestinationActive(true);
   }
 
   function markRouteStop(order: number, status: RouteStopStatus) {
@@ -302,6 +315,8 @@ export function StopsProvider({ children }: { children: ReactNode }) {
       ...orderedStops.slice(0, currentIndex + 1),
     ].find((stop) => !nextStatuses[stop.order]);
     setActiveStopOrder(nextStop?.order ?? null);
+    const destinationIsNext = !nextStop && !!lastResult?.destination;
+    setIsDestinationActive(destinationIsNext);
   }
 
   return (
@@ -333,10 +348,12 @@ export function StopsProvider({ children }: { children: ReactNode }) {
         setLastResult,
         isNavigationStarted,
         activeStopOrder,
+        isDestinationActive,
         routeStopStatuses,
         startNavigation,
         restartNavigation,
         selectRouteStop,
+        selectRouteDestination,
         markRouteStop,
         resetNavigation,
       }}

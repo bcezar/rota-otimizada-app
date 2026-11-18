@@ -54,6 +54,7 @@ const FALLBACK_REGION: Region = {
 };
 
 type RoutePanelLevel = 15 | 50 | 96;
+type FocusedMapTarget = { type: 'stop'; order: number } | { type: 'origin' | 'destination' };
 const ROUTE_PANEL_LEVELS: RoutePanelLevel[] = [15, 50, 96];
 
 function routePanelHeightForLevel(level: RoutePanelLevel, availableHeight: number) {
@@ -80,10 +81,12 @@ export default function Navegacao() {
     setLastResult,
     isNavigationStarted,
     activeStopOrder,
+    isDestinationActive,
     routeStopStatuses,
     startNavigation,
     restartNavigation,
     selectRouteStop,
+    selectRouteDestination,
     markRouteStop,
     resetNavigation,
   } = useStops();
@@ -109,6 +112,7 @@ export default function Navegacao() {
   const [saveRouteName, setSaveRouteName] = useState('');
   const [isSavingRoute, setIsSavingRoute] = useState(false);
   const [routePanelLevel, setRoutePanelLevel] = useState<RoutePanelLevel>(50);
+  const [focusedMapTarget, setFocusedMapTarget] = useState<FocusedMapTarget | null>(null);
   const mapRef = useRef<MapView | null>(null);
   const stopListRef = useRef<ScrollView | null>(null);
   const stopRowOffsets = useRef<Record<number, number>>({});
@@ -121,7 +125,23 @@ export default function Navegacao() {
     [lastResult],
   );
   const activeStop = orderedStops.find((stop) => stop.order === activeStopOrder) ?? null;
+  const nextPendingStop = orderedStops.find((stop) => !routeStopStatuses[stop.order]) ?? null;
+  const allStopsResolved = orderedStops.length > 0 && orderedStops.every((stop) => !!routeStopStatuses[stop.order]);
   const activeLocalStop = activeStop ? stops.find((stop) => stop.id === stopIdsByOrder[activeStop.order]) : null;
+  const focusedMapStop = focusedMapTarget?.type === 'stop'
+    ? orderedStops.find((stop) => stop.order === focusedMapTarget.order) ?? null
+    : null;
+  const focusedMapLocalStop = focusedMapStop
+    ? stops.find((stop) => stop.id === stopIdsByOrder[focusedMapStop.order])
+    : null;
+  const activeDestination = isNavigationStarted && isDestinationActive && !!lastResult?.destination;
+  const compactSelectedEndpoint = routePanelLevel === 15
+    ? focusedMapTarget?.type === 'origin' || focusedMapTarget?.type === 'destination'
+      ? focusedMapTarget.type
+      : activeDestination
+        ? 'destination'
+        : null
+    : null;
   const routePanelHeight = routePanelHeightForLevel(routePanelLevel, availableHeight);
   const routePanelHeightAnimation = useRef(new Animated.Value(routePanelHeight)).current;
   const initialReferenceAddress =
@@ -134,13 +154,19 @@ export default function Navegacao() {
     ? { ...FALLBACK_REGION, latitude: locationHint.lat, longitude: locationHint.lng }
     : FALLBACK_REGION);
   const routePanelGestureStartHeight = useRef(routePanelHeight);
-  const compactPanelStop = activeStop ??
+  const compactPanelStop = compactSelectedEndpoint || isDestinationActive ? null : activeStop ??
+    (!isNavigationStarted ? focusedMapStop : null) ??
     orderedStops.find((stop) => !routeStopStatuses[stop.order]) ??
     (isNavigationStarted ? orderedStops[orderedStops.length - 1] : orderedStops[0]) ??
     null;
   const visibleStops = routePanelLevel === 15
     ? compactPanelStop ? [compactPanelStop] : []
     : orderedStops;
+  const focusedMapCoordinates = focusedMapTarget?.type === 'origin'
+    ? lastResult?.origin?.coordinates ?? null
+    : focusedMapTarget?.type === 'destination'
+      ? lastResult?.destination?.coordinates ?? null
+      : focusedMapStop?.coordinates ?? null;
   const routePanelPanResponder = useMemo(
     () => PanResponder.create({
       onMoveShouldSetPanResponder: (_event, gesture) =>
@@ -350,6 +376,7 @@ export default function Navegacao() {
 
   useEffect(() => {
     setRoutePanelLevel(50);
+    setFocusedMapTarget(null);
   }, [lastResult]);
 
   useEffect(() => {
@@ -386,32 +413,52 @@ export default function Navegacao() {
   }, [lastResult, mapReady, orderedStops, routePanelLevel, routePanelHeight, availableHeight]);
 
   useEffect(() => {
-    if (!isNavigationStarted || activeStopOrder == null || !mapRef.current || !mapReady || routePanelLevel === 96) return;
-    const stop = orderedStops.find((item) => item.order === activeStopOrder);
-    if (!stop) return;
+    if (!isNavigationStarted) return;
+    if (isDestinationActive && lastResult?.destination) {
+      setFocusedMapTarget({ type: 'destination' });
+      if (routePanelLevel === 15) setRoutePanelLevel(50);
+      return;
+    }
+    if (activeStopOrder != null) setFocusedMapTarget({ type: 'stop', order: activeStopOrder });
+  }, [activeStopOrder, isDestinationActive, isNavigationStarted, lastResult?.destination, routePanelLevel]);
+
+  useEffect(() => {
+    if (!focusedMapCoordinates || !mapRef.current || !mapReady || routePanelLevel === 96) return;
     const latitudeDelta = 0.018;
     mapRef.current.animateToRegion(
       {
-        latitude: stop.coordinates.lat - latitudeDelta * routePanelHeight / (2 * availableHeight),
-        longitude: stop.coordinates.lng,
+        latitude: focusedMapCoordinates.lat - latitudeDelta * routePanelHeight / (2 * availableHeight),
+        longitude: focusedMapCoordinates.lng,
         latitudeDelta,
         longitudeDelta: 0.018,
       },
       500,
     );
-  }, [activeStopOrder, isNavigationStarted, orderedStops, mapReady, routePanelLevel, routePanelHeight, availableHeight]);
+  }, [focusedMapCoordinates, mapReady, routePanelLevel, routePanelHeight, availableHeight]);
 
   useEffect(() => {
-    if (!isNavigationStarted || activeStopOrder == null) return;
-    const offset = stopRowOffsets.current[activeStopOrder];
+    if (!isNavigationStarted) return;
+    const focusOrder = isDestinationActive ? orderedStops.length + 1 : activeStopOrder;
+    if (focusOrder == null) return;
+    const offset = stopRowOffsets.current[focusOrder];
     if (offset != null) {
       stopListRef.current?.scrollTo({ y: Math.max(0, offset - 12), animated: true });
     }
-  }, [activeStopOrder, isNavigationStarted, orderedStops.length]);
+  }, [activeStopOrder, isDestinationActive, isNavigationStarted, orderedStops.length]);
 
   function handleEditStop() {
     if (!activeStop) return;
     openStopDetails(activeStop.order);
+  }
+
+  function focusMapTarget(target: FocusedMapTarget) {
+    setFocusedMapTarget(target);
+  }
+
+  function returnToNextPendingStop() {
+    if (!nextPendingStop) return;
+    selectRouteStop(nextPendingStop.order);
+    setFocusedMapTarget({ type: 'stop', order: nextPendingStop.order });
   }
 
   function openStopDetails(order: number) {
@@ -420,6 +467,7 @@ export default function Navegacao() {
       Alert.alert('Parada não encontrada', 'Não foi possível abrir os detalhes desta parada.');
       return;
     }
+    setFocusedMapTarget(null);
     router.push({ pathname: '/stop-detail', params: { id, source: 'navigation' } });
   }
 
@@ -457,8 +505,11 @@ export default function Navegacao() {
   }
 
   async function openNavigationApp(app: 'google_maps' | 'waze' | 'apple_maps') {
-    if (!activeStop) return;
-    const { lat, lng } = activeStop.coordinates;
+    const coordinates = isDestinationActive
+      ? lastResult?.destination?.coordinates
+      : activeStop?.coordinates;
+    if (!coordinates) return;
+    const { lat, lng } = coordinates;
     const url =
       app === 'waze'
         ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
@@ -473,7 +524,7 @@ export default function Navegacao() {
   }
 
   function handleNavigate() {
-    if (!activeStop) return;
+    if (!activeStop && !activeDestination) return;
     if (navigationApp === 'ask_always') {
       setNavigationAppVisible(true);
       return;
@@ -716,8 +767,16 @@ export default function Navegacao() {
               latitude: lastResult.origin.coordinates.lat,
               longitude: lastResult.origin.coordinates.lng,
             }}
+            zIndex={focusedMapTarget?.type === 'origin' ? 10 : 1}
+            onPress={() => focusMapTarget({ type: 'origin' })}
           >
-            <View style={[styles.pinBadge, styles.pinBadgeFixed]}>
+            <View
+              style={[
+                styles.pinBadge,
+                styles.pinBadgeFixed,
+                focusedMapTarget?.type === 'origin' && styles.pinBadgeActive,
+              ]}
+            >
               <Ionicons name="home" size={14} color={colors.onAccent} />
             </View>
           </Marker>
@@ -726,9 +785,10 @@ export default function Navegacao() {
         {orderedStops.map((stop) => {
           const status = routeStopStatuses[stop.order];
           const isActive = isNavigationStarted && activeStopOrder === stop.order;
+          const isFocused = focusedMapTarget?.type === 'stop' && focusedMapTarget.order === stop.order;
           return (
             <Marker
-              key={stop.order}
+              key={`${stop.order}-${status ?? 'pending'}-${isActive ? 'active' : isFocused ? 'focused' : 'idle'}`}
               coordinate={{ latitude: stop.coordinates.lat, longitude: stop.coordinates.lng }}
               zIndex={isActive ? 10 : 1}
               onPress={() => {
@@ -736,14 +796,14 @@ export default function Navegacao() {
                   selectRouteStop(stop.order);
                   if (routePanelLevel === 15) setRoutePanelLevel(50);
                 } else {
-                  openStopDetails(stop.order);
+                  focusMapTarget({ type: 'stop', order: stop.order });
                 }
               }}
             >
               <View
                 style={[
                   styles.pinBadge,
-                  isActive && styles.pinBadgeActive,
+                  (isActive || isFocused) && styles.pinBadgeActive,
                   status === 'visited' && styles.pinBadgeVisited,
                   status === 'failed' && styles.pinBadgeFailed,
                 ]}
@@ -760,8 +820,23 @@ export default function Navegacao() {
               latitude: lastResult.destination.coordinates.lat,
               longitude: lastResult.destination.coordinates.lng,
             }}
+            zIndex={activeDestination || focusedMapTarget?.type === 'destination' ? 10 : 1}
+            onPress={() => {
+              if (isNavigationStarted) {
+                selectRouteDestination();
+                if (routePanelLevel === 15) setRoutePanelLevel(50);
+              } else {
+                focusMapTarget({ type: 'destination' });
+              }
+            }}
           >
-            <View style={[styles.pinBadge, styles.pinBadgeFixed]}>
+            <View
+              style={[
+                styles.pinBadge,
+                styles.pinBadgeFixed,
+                (activeDestination || focusedMapTarget?.type === 'destination') && styles.pinBadgeActive,
+              ]}
+            >
               <Ionicons name="flag" size={14} color={colors.onAccent} />
             </View>
           </Marker>
@@ -805,6 +880,38 @@ export default function Navegacao() {
       >
         <Ionicons name="bookmark-outline" size={20} color={colors.text} />
       </Pressable>
+
+      {focusedMapStop && !isNavigationStarted && routePanelLevel !== 96 ? (
+        <View style={[styles.mapStopPreview, { bottom: routePanelHeight + 12 }]}>
+          <View style={styles.mapStopPreviewCopy}>
+            <Text style={styles.mapStopPreviewTitle} numberOfLines={1}>
+              {focusedMapLocalStop?.placeName || focusedMapStop.original_address}
+            </Text>
+            {focusedMapLocalStop?.placeName ? (
+              <Text style={styles.mapStopPreviewAddress} numberOfLines={1}>
+                {focusedMapStop.original_address}
+              </Text>
+            ) : null}
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Abrir detalhes da parada selecionada"
+            style={styles.mapStopPreviewAction}
+            onPress={() => openStopDetails(focusedMapStop.order)}
+          >
+            <Ionicons name="create-outline" size={18} color={colors.onAccent} />
+            <Text style={styles.mapStopPreviewActionText}>Detalhes</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Fechar cartão da parada selecionada"
+            style={styles.mapStopPreviewClose}
+            onPress={() => setFocusedMapTarget(null)}
+          >
+            <Ionicons name="close" size={18} color={colors.text} />
+          </Pressable>
+        </View>
+      ) : null}
 
       {lastResult ? (
         <Animated.View
@@ -878,14 +985,20 @@ export default function Navegacao() {
             contentContainerStyle={styles.stopListContent}
             showsVerticalScrollIndicator
           >
-            {lastResult.origin && routePanelLevel !== 15 ? (
-              <View style={styles.endpointRow}>
+            {lastResult.origin && (routePanelLevel !== 15 || compactSelectedEndpoint === 'origin') ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Centralizar ponto de partida no mapa"
+                style={[styles.endpointRow, focusedMapTarget?.type === 'origin' && styles.endpointRowFocused]}
+                onPress={() => focusMapTarget({ type: 'origin' })}
+              >
                 <Ionicons name="home" size={18} color={colors.accent} />
                 <View style={styles.stopCopy}>
                   <Text style={styles.stopAddress}>{lastResult.origin.address}</Text>
                   <Text style={styles.stopCaption}>Ponto de partida</Text>
                 </View>
-              </View>
+                <Ionicons name="locate-outline" size={17} color={colors.textMuted} />
+              </Pressable>
             ) : null}
 
             {visibleStops.map((stop) => {
@@ -906,69 +1019,82 @@ export default function Navegacao() {
                     stopRowOffsets.current[stop.order] = event.nativeEvent.layout.y;
                   }}
                 >
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => {
-                      if (isNavigationStarted) {
-                        selectRouteStop(stop.order);
-                        if (routePanelLevel === 15) setRoutePanelLevel(50);
-                      } else {
-                        openStopDetails(stop.order);
-                      }
-                    }}
+                  <View
                     style={[
                       styles.stopRow,
                       routePanelLevel === 15 && styles.stopRowCompact,
                       isActive && routePanelLevel !== 15 && styles.stopRowActive,
-                      isPast && styles.stopRowPast,
                       status === 'failed' && styles.stopRowFailed,
                     ]}
                   >
-                    <View
-                      style={[
-                        styles.orderBadge,
-                        isActive && routePanelLevel !== 15 && styles.orderBadgeActive,
-                        status === 'visited' && styles.orderBadgeVisited,
-                        status === 'failed' && styles.orderBadgeFailed,
-                      ]}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Centralizar parada ${stop.order} no mapa`}
+                      style={styles.stopRowMain}
+                      onPress={() => {
+                        if (isNavigationStarted) {
+                          selectRouteStop(stop.order);
+                          if (routePanelLevel === 15) setRoutePanelLevel(50);
+                        } else {
+                          focusMapTarget({ type: 'stop', order: stop.order });
+                        }
+                      }}
                     >
-                      <Text style={styles.orderText}>{stop.order}</Text>
-                    </View>
-                    <View style={styles.stopCopy}>
-                      <Text
+                      <View
                         style={[
-                          styles.stopAddress,
-                          routePanelLevel === 15 && styles.stopAddressCompact,
-                          isActive && routePanelLevel !== 15 && styles.stopAddressActive,
-                          isPast && styles.stopAddressPast,
-                          status === 'failed' && styles.stopAddressFailed,
+                          styles.orderBadge,
+                          isActive && routePanelLevel !== 15 && styles.orderBadgeActive,
+                          status === 'visited' && styles.orderBadgeVisited,
+                          status === 'failed' && styles.orderBadgeFailed,
                         ]}
                       >
-                        {localStop?.placeName || stop.original_address}
-                      </Text>
-                      {localStop?.placeName && routePanelLevel !== 15 ? (
-                        <Text style={styles.stopCaption}>{stop.original_address}</Text>
-                      ) : null}
-                      {routePanelLevel !== 15 && status === 'failed' ? (
-                        <Text style={styles.failedLabel}>Falhada</Text>
-                      ) : routePanelLevel !== 15 && status === 'visited' ? (
-                        <Text style={styles.visitedLabel}>Visitada</Text>
-                      ) : null}
-                    </View>
-                    {(distanceToDisplay != null || durationToDisplay != null) && routePanelLevel !== 15 ? (
-                      <View style={styles.legMetrics}>
-                        {distanceToDisplay != null ? (
-                          <Text style={styles.legDistance}>{distanceToDisplay.toFixed(1)} km</Text>
+                        <Text style={styles.orderText}>{stop.order}</Text>
+                      </View>
+                      <View style={styles.stopCopy}>
+                        <Text
+                          style={[
+                            styles.stopAddress,
+                            routePanelLevel === 15 && styles.stopAddressCompact,
+                            isActive && routePanelLevel !== 15 && styles.stopAddressActive,
+                            isPast && styles.stopAddressPast,
+                            status === 'failed' && styles.stopAddressFailed,
+                          ]}
+                        >
+                          {localStop?.placeName || stop.original_address}
+                        </Text>
+                        {localStop?.placeName && routePanelLevel !== 15 ? (
+                          <Text style={styles.stopCaption}>{stop.original_address}</Text>
                         ) : null}
-                        {durationToDisplay != null ? (
-                          <Text style={styles.legTime}>{formatRouteDuration(durationToDisplay)}</Text>
+                        {routePanelLevel !== 15 && status === 'failed' ? (
+                          <Text style={styles.failedLabel}>Falhada</Text>
+                        ) : routePanelLevel !== 15 && status === 'visited' ? (
+                          <Text style={styles.visitedLabel}>Visitada</Text>
                         ) : null}
                       </View>
-                    ) : null}
-                    {routePanelLevel !== 15 ? (
+                      {(distanceToDisplay != null || durationToDisplay != null) && routePanelLevel !== 15 ? (
+                        <View style={styles.legMetrics}>
+                          {distanceToDisplay != null ? (
+                            <Text style={styles.legDistance}>{distanceToDisplay.toFixed(1)} km</Text>
+                          ) : null}
+                          {durationToDisplay != null ? (
+                            <Text style={styles.legTime}>{formatRouteDuration(durationToDisplay)}</Text>
+                          ) : null}
+                        </View>
+                      ) : null}
+                    </Pressable>
+                    {!isNavigationStarted ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Abrir detalhes da parada ${stop.order}`}
+                        style={styles.stopDetailsButton}
+                        onPress={() => openStopDetails(stop.order)}
+                      >
+                        <Ionicons name="create-outline" size={19} color={colors.textMuted} />
+                      </Pressable>
+                    ) : routePanelLevel !== 15 ? (
                       <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                     ) : null}
-                  </Pressable>
+                  </View>
                   {isActive ? (
                     <View
                       style={[
@@ -1017,7 +1143,7 @@ export default function Navegacao() {
                             routePanelLevel === 15 && styles.actionButtonTextCompact,
                           ]}
                         >
-                          {stop.order === orderedStops[orderedStops.length - 1]?.order
+                          {stop.order === orderedStops[orderedStops.length - 1]?.order && !lastResult.destination
                             ? 'Concluir'
                             : 'Visitado'}
                         </Text>
@@ -1028,33 +1154,80 @@ export default function Navegacao() {
               );
             })}
 
-            {lastResult.destination && routePanelLevel !== 15 ? (
-              <View style={styles.endpointRow}>
-                <Ionicons name="flag" size={18} color={colors.textMuted} />
-                <View style={styles.stopCopy}>
-                  <Text style={styles.stopAddress}>{lastResult.destination.address}</Text>
-                  <Text style={styles.stopCaption}>Destino final</Text>
-                  {distanceToDestinationDisplayed(lastResult, orderedStops) != null ||
-                  durationToDestinationDisplayed(lastResult, orderedStops) != null ? (
-                    <View style={styles.endpointMetrics}>
-                      {distanceToDestinationDisplayed(lastResult, orderedStops) != null ? (
-                        <Text style={styles.legDistance}>
-                          {distanceToDestinationDisplayed(lastResult, orderedStops)!.toFixed(1)} km
-                        </Text>
-                      ) : null}
-                      {durationToDestinationDisplayed(lastResult, orderedStops) != null ? (
-                        <Text style={styles.legTime}>
-                          {formatRouteDuration(durationToDestinationDisplayed(lastResult, orderedStops)!)}
-                        </Text>
-                      ) : null}
-                    </View>
-                  ) : null}
-                </View>
+            {lastResult.destination &&
+            (routePanelLevel !== 15 || activeDestination || compactSelectedEndpoint === 'destination') ? (
+              <View style={[
+                activeDestination && styles.activeStopGroup,
+                routePanelLevel === 15 && styles.compactDestinationCard,
+              ]}
+                onLayout={(event) => {
+                  stopRowOffsets.current[orderedStops.length + 1] = event.nativeEvent.layout.y;
+                }}
+              >
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Centralizar destino final no mapa"
+                  style={[
+                    styles.endpointRow,
+                    (activeDestination || focusedMapTarget?.type === 'destination') && styles.endpointRowFocused,
+                  ]}
+                  onPress={() => {
+                    if (isNavigationStarted) {
+                      selectRouteDestination();
+                      if (routePanelLevel === 15) setRoutePanelLevel(50);
+                    } else {
+                      focusMapTarget({ type: 'destination' });
+                    }
+                  }}
+                >
+                  <Ionicons name="flag" size={18} color={activeDestination ? colors.accent : colors.textMuted} />
+                  <View style={styles.stopCopy}>
+                    <Text style={[styles.stopAddress, activeDestination && styles.stopAddressActive]}>
+                      {lastResult.destination.address}
+                    </Text>
+                    <Text style={styles.stopCaption}>Destino final</Text>
+                    {distanceToDestinationDisplayed(lastResult, orderedStops) != null ||
+                    durationToDestinationDisplayed(lastResult, orderedStops) != null ? (
+                      <View style={styles.endpointMetrics}>
+                        {distanceToDestinationDisplayed(lastResult, orderedStops) != null ? (
+                          <Text style={styles.legDistance}>
+                            {distanceToDestinationDisplayed(lastResult, orderedStops)!.toFixed(1)} km
+                          </Text>
+                        ) : null}
+                        {durationToDestinationDisplayed(lastResult, orderedStops) != null ? (
+                          <Text style={styles.legTime}>
+                            {formatRouteDuration(durationToDestinationDisplayed(lastResult, orderedStops)!)}
+                          </Text>
+                        ) : null}
+                      </View>
+                    ) : null}
+                  </View>
+                  <Ionicons name="locate-outline" size={17} color={colors.textMuted} />
+                </Pressable>
+                {activeDestination ? (
+                  <View style={styles.endpointActions}>
+                    <Pressable style={styles.navigateButton} onPress={handleNavigate}>
+                      <Ionicons name="navigate" size={18} color={colors.onAccent} />
+                      <Text style={styles.navigateButtonText}>Navegar</Text>
+                    </Pressable>
+                    {allStopsResolved ? (
+                      <Pressable style={styles.visitedButton} onPress={resetNavigation}>
+                        <Ionicons name="checkmark" size={18} color={colors.success} />
+                        <Text style={styles.visitedButtonText}>Concluir rota</Text>
+                      </Pressable>
+                    ) : (
+                      <Pressable style={styles.endpointReturnButton} onPress={returnToNextPendingStop}>
+                        <Ionicons name="arrow-back" size={17} color={colors.text} />
+                        <Text style={styles.endpointReturnButtonText}>Voltar às paradas</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                ) : null}
               </View>
             ) : null}
           </ScrollView>
 
-          {isNavigationStarted && !activeStop && routePanelLevel === 50 ? (
+          {isNavigationStarted && !activeStop && !activeDestination && routePanelLevel === 50 ? (
             <Pressable style={styles.finishedButton} onPress={resetNavigation}>
               <Text style={styles.visitedButtonText}>Rota concluída · Finalizar</Text>
             </Pressable>
@@ -1171,9 +1344,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.onAccent,
   },
-  pinBadgeActive: { width: 40, height: 40, borderRadius: 20, borderWidth: 3 },
+  pinBadgeActive: { borderWidth: 4 },
   pinBadgeFixed: { backgroundColor: colors.textMuted },
-  pinBadgeVisited: { backgroundColor: '#46546b' },
+  pinBadgeVisited: { backgroundColor: colors.success },
   pinBadgeFailed: { backgroundColor: colors.dangerMuted },
   pinBadgeText: { color: colors.onAccent, fontWeight: '700', fontSize: 12 },
   searchBar: {
@@ -1217,6 +1390,46 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 4,
+  },
+  mapStopPreview: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 7,
+  },
+  mapStopPreviewCopy: { flex: 1, minWidth: 0, gap: 2 },
+  mapStopPreviewTitle: { color: colors.text, fontSize: 13, fontWeight: '700' },
+  mapStopPreviewAddress: { color: colors.textMuted, fontSize: 11 },
+  mapStopPreviewAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 8,
+    borderRadius: 9,
+    backgroundColor: colors.accent,
+  },
+  mapStopPreviewActionText: { color: colors.onAccent, fontSize: 12, fontWeight: '700' },
+  mapStopPreviewClose: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: colors.background,
   },
   mapLayersButton: {
     position: 'absolute',
@@ -1351,6 +1564,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  endpointRowFocused: { backgroundColor: 'rgba(29, 78, 216, 0.18)' },
+  compactDestinationCard: { borderRadius: 10, paddingHorizontal: 8 },
+  endpointActions: { flexDirection: 'row', gap: 9, paddingHorizontal: 8, paddingBottom: 8 },
+  endpointReturnButton: {
+    flex: 1,
+    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.background,
+  },
+  endpointReturnButtonText: { color: colors.text, fontSize: 14, fontWeight: '700' },
   stopRow: {
     minHeight: 62,
     flexDirection: 'row',
@@ -1366,6 +1595,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderBottomWidth: 0,
+  },
+  stopRowMain: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  stopDetailsButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 9,
+    backgroundColor: colors.background,
   },
   stopRowActive: {
     backgroundColor: 'rgba(29, 78, 216, 0.18)',
@@ -1384,7 +1628,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     marginBottom: 2,
   },
-  stopRowPast: { opacity: 0.55 },
   stopRowFailed: { backgroundColor: 'rgba(180, 83, 97, 0.08)' },
   orderBadge: {
     width: 28,
@@ -1395,7 +1638,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   orderBadgeActive: { width: 34, height: 34, borderRadius: 17 },
-  orderBadgeVisited: { backgroundColor: '#46546b' },
+  orderBadgeVisited: { backgroundColor: colors.success },
   orderBadgeFailed: { backgroundColor: colors.dangerMuted },
   orderText: { color: colors.onAccent, fontSize: 12, fontWeight: '700' },
   stopCopy: { flex: 1, gap: 3 },
