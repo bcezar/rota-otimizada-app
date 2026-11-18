@@ -4,7 +4,13 @@ import { useState } from 'react';
 import { FlatList, Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import { formatRouteText } from '../src/stops/formatRoute';
-import { distanceDisplayedOnStop, distanceLabelForStop } from '../src/stops/routeDistances';
+import {
+  distanceDisplayedOnStop,
+  distanceToDestinationDisplayed,
+  durationDisplayedOnStop,
+  durationToDestinationDisplayed,
+  formatRouteDuration,
+} from '../src/stops/routeDistances';
 import { useStops } from '../src/stops/StopsContext';
 import { colors } from '../src/theme/colors';
 
@@ -78,6 +84,9 @@ export default function Result() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  const destinationDistance = distanceToDestinationDisplayed(lastResult, lastResult.optimized_route);
+  const destinationDuration = durationToDestinationDisplayed(lastResult, lastResult.optimized_route);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Rota otimizada</Text>
@@ -111,7 +120,17 @@ export default function Result() {
               </View>
               <View style={styles.stopInfo}>
                 <Text style={styles.stopAddressText}>{lastResult.destination.address}</Text>
-                <Text style={styles.legText}>Destino</Text>
+                <Text style={styles.legText}>Destino final</Text>
+                {destinationDistance != null || destinationDuration != null ? (
+                  <Text style={styles.legText}>
+                    {destinationDistance != null
+                      ? `${destinationDistance.toFixed(1)} km`
+                      : ''}
+                    {destinationDuration != null
+                      ? `${destinationDistance != null ? ' · ' : ''}${formatRouteDuration(destinationDuration)}`
+                      : ''}
+                  </Text>
+                ) : null}
               </View>
             </View>
           ) : null
@@ -125,7 +144,7 @@ export default function Result() {
             lastResult.optimized_route,
             item.order,
           );
-          const distanceLabel = distanceLabelForStop(lastResult, lastResult.optimized_route, item.order);
+          const durationToDisplay = durationDisplayedOnStop(lastResult, lastResult.optimized_route, item.order);
           return (
             <View style={[styles.stopRow, isSkipped && styles.stopRowSkipped]}>
               <View style={[styles.badge, isVisited && styles.badgeVisited]}>
@@ -136,8 +155,13 @@ export default function Result() {
                   {description ? `${description} — ` : ''}
                   {item.original_address}
                 </Text>
-                {distanceToDisplay != null ? (
-                  <Text style={styles.legText}>{distanceToDisplay.toFixed(1)} km {distanceLabel}</Text>
+                {distanceToDisplay != null || durationToDisplay != null ? (
+                  <Text style={styles.legText}>
+                    {distanceToDisplay != null ? `${distanceToDisplay.toFixed(1)} km` : ''}
+                    {durationToDisplay != null
+                      ? `${distanceToDisplay != null ? ' · ' : ''}${formatRouteDuration(durationToDisplay)}`
+                      : ''}
+                  </Text>
                 ) : null}
               </View>
               <Pressable onPress={() => toggleVisited(item.order)}>

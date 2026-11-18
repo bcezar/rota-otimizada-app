@@ -48,6 +48,7 @@ export interface RouteResponse {
   total_distance_km: number;
   total_duration_min: number | null;
   origin_to_first_stop_distance_km?: number | null;
+  origin_to_first_stop_duration_min?: number | null;
   last_stop_to_destination_distance_km?: number | null;
   geocoding_failures: string[];
   maps_url: string | null;

@@ -36,7 +36,13 @@ import { usePreferences } from '../../src/preferences/PreferencesContext';
 import { useStops } from '../../src/stops/StopsContext';
 import { formatRouteText } from '../../src/stops/formatRoute';
 import { buildRouteCsv, buildRoutePdfHtml } from '../../src/stops/exportRoute';
-import { distanceDisplayedOnStop } from '../../src/stops/routeDistances';
+import {
+  distanceDisplayedOnStop,
+  distanceToDestinationDisplayed,
+  durationDisplayedOnStop,
+  durationToDestinationDisplayed,
+  formatRouteDuration,
+} from '../../src/stops/routeDistances';
 import { mapRouteStopsToLocalStops } from '../../src/stops/routeStopMapping';
 import { colors } from '../../src/theme/colors';
 
@@ -888,6 +894,7 @@ export default function Navegacao() {
               const isActive = isNavigationStarted && activeStopOrder === stop.order;
               const isPast = isNavigationStarted && !!status && !isActive;
               const distanceToDisplay = distanceDisplayedOnStop(lastResult, orderedStops, stop.order);
+              const durationToDisplay = durationDisplayedOnStop(lastResult, orderedStops, stop.order);
               return (
                 <View
                   key={stop.order}
@@ -948,8 +955,15 @@ export default function Navegacao() {
                         <Text style={styles.visitedLabel}>Visitada</Text>
                       ) : null}
                     </View>
-                    {distanceToDisplay != null && routePanelLevel !== 15 ? (
-                      <Text style={styles.legDistance}>{distanceToDisplay.toFixed(1)} km</Text>
+                    {(distanceToDisplay != null || durationToDisplay != null) && routePanelLevel !== 15 ? (
+                      <View style={styles.legMetrics}>
+                        {distanceToDisplay != null ? (
+                          <Text style={styles.legDistance}>{distanceToDisplay.toFixed(1)} km</Text>
+                        ) : null}
+                        {durationToDisplay != null ? (
+                          <Text style={styles.legTime}>{formatRouteDuration(durationToDisplay)}</Text>
+                        ) : null}
+                      </View>
                     ) : null}
                     {routePanelLevel !== 15 ? (
                       <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
@@ -1020,6 +1034,21 @@ export default function Navegacao() {
                 <View style={styles.stopCopy}>
                   <Text style={styles.stopAddress}>{lastResult.destination.address}</Text>
                   <Text style={styles.stopCaption}>Destino final</Text>
+                  {distanceToDestinationDisplayed(lastResult, orderedStops) != null ||
+                  durationToDestinationDisplayed(lastResult, orderedStops) != null ? (
+                    <View style={styles.endpointMetrics}>
+                      {distanceToDestinationDisplayed(lastResult, orderedStops) != null ? (
+                        <Text style={styles.legDistance}>
+                          {distanceToDestinationDisplayed(lastResult, orderedStops)!.toFixed(1)} km
+                        </Text>
+                      ) : null}
+                      {durationToDestinationDisplayed(lastResult, orderedStops) != null ? (
+                        <Text style={styles.legTime}>
+                          {formatRouteDuration(durationToDestinationDisplayed(lastResult, orderedStops)!)}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ) : null}
                 </View>
               </View>
             ) : null}
@@ -1378,7 +1407,10 @@ const styles = StyleSheet.create({
   stopCaption: { color: colors.textMuted, fontSize: 12 },
   failedLabel: { color: colors.dangerMuted, fontSize: 11, fontWeight: '700' },
   visitedLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '600' },
-  legDistance: { color: colors.textMuted, fontSize: 12 },
+  legMetrics: { alignItems: 'flex-end', maxWidth: 116 },
+  legDistance: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  legTime: { color: colors.textMuted, fontSize: 10, textAlign: 'right' },
+  endpointMetrics: { gap: 2, marginTop: 2 },
   activeActions: {
     flexDirection: 'row',
     alignItems: 'center',
