@@ -4,11 +4,12 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Location from 'expo-location';
 import * as Print from 'expo-print';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
   Alert,
+  KeyboardAvoidingView,
   Linking,
   Modal,
   PanResponder,
@@ -29,6 +30,7 @@ import * as Sharing from 'expo-sharing';
 import { useAddressBook } from '../../src/addressBook/AddressBookContext';
 import * as routesApi from '../../src/api/routes';
 import * as savedRoutesApi from '../../src/api/savedRoutes';
+import * as feedbackApi from '../../src/api/feedback';
 import type { Coordinates, SavedRouteStopDetails } from '../../src/api/types';
 import { useAuth } from '../../src/auth/AuthContext';
 import { OptionSheet } from '../../src/components/OptionSheet';
@@ -113,6 +115,11 @@ export default function Navegacao() {
   const [isSavingRoute, setIsSavingRoute] = useState(false);
   const [completionVisible, setCompletionVisible] = useState(false);
   const [completionStatuses, setCompletionStatuses] = useState<Record<number, RouteStopStatus>>({});
+  const [routeRating, setRouteRating] = useState<number | null>(null);
+  const [routeFeedbackComment, setRouteFeedbackComment] = useState('');
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [routePanelLevel, setRoutePanelLevel] = useState<RoutePanelLevel>(50);
   const [focusedMapTarget, setFocusedMapTarget] = useState<FocusedMapTarget | null>(null);
   const completionOpacity = useRef(new Animated.Value(0)).current;
@@ -150,6 +157,39 @@ export default function Navegacao() {
     : null;
   const routePanelHeight = routePanelHeightForLevel(routePanelLevel, availableHeight);
   const routePanelHeightAnimation = useRef(new Animated.Value(routePanelHeight)).current;
+  const fitCompleteRoute = useCallback(() => {
+    if (!lastResult || !mapRef.current || !mapReady || routePanelLevel === 96) return;
+    const coordinates = [
+      ...(lastResult.origin
+        ? [{ latitude: lastResult.origin.coordinates.lat, longitude: lastResult.origin.coordinates.lng }]
+        : []),
+      ...orderedStops.map((stop) => ({
+        latitude: stop.coordinates.lat,
+        longitude: stop.coordinates.lng,
+      })),
+      ...(lastResult.destination
+        ? [{ latitude: lastResult.destination.coordinates.lat, longitude: lastResult.destination.coordinates.lng }]
+        : []),
+    ];
+    if (!coordinates.length) return;
+    mapRef.current.fitToCoordinates(coordinates, {
+      edgePadding: {
+        top: 70,
+        right: 50,
+        bottom: Math.min(routePanelHeight, availableHeight * 0.65),
+        left: 50,
+      },
+      animated: true,
+    });
+  }, [lastResult, mapReady, routePanelLevel, orderedStops, routePanelHeight, availableHeight]);
+  const focusCompleteRoute = () => {
+    setFocusedMapTarget(null);
+    if (routePanelLevel === 96) {
+      setRoutePanelLevel(50);
+      return;
+    }
+    fitCompleteRoute();
+  };
   const initialReferenceAddress =
     stops[stops.length - 1]?.address.trim() ||
     origin.trim() ||
@@ -385,6 +425,10 @@ export default function Navegacao() {
     setFocusedMapTarget(null);
     setCompletionVisible(false);
     setCompletionStatuses({});
+    setRouteRating(null);
+    setRouteFeedbackComment('');
+    setFeedbackSubmitted(false);
+    setFeedbackError(null);
   }, [lastResult]);
 
   useEffect(() => {
@@ -408,37 +452,9 @@ export default function Navegacao() {
   }, [completionVisible, completionOpacity, completionScale]);
 
   useEffect(() => {
-    if (!lastResult || !mapRef.current || !mapReady || routePanelLevel === 96) return;
-    const coords = [
-      ...orderedStops.map((stop) => ({
-        latitude: stop.coordinates.lat,
-        longitude: stop.coordinates.lng,
-      })),
-      ...(lastResult.origin
-        ? [{
-            latitude: lastResult.origin.coordinates.lat,
-            longitude: lastResult.origin.coordinates.lng,
-          }]
-        : []),
-      ...(lastResult.destination
-        ? [{
-            latitude: lastResult.destination.coordinates.lat,
-            longitude: lastResult.destination.coordinates.lng,
-          }]
-        : []),
-    ];
-    if (coords.length > 0) {
-      mapRef.current.fitToCoordinates(coords, {
-        edgePadding: {
-          top: 70,
-          right: 50,
-          bottom: Math.min(routePanelHeight, availableHeight * 0.65),
-          left: 50,
-        },
-        animated: true,
-      });
-    }
-  }, [lastResult, mapReady, orderedStops, routePanelLevel, routePanelHeight, availableHeight]);
+    if (routePanelLevel === 96) return;
+    fitCompleteRoute();
+  }, [fitCompleteRoute, routePanelLevel]);
 
   useEffect(() => {
     if (!isNavigationStarted) return;
@@ -534,13 +550,47 @@ export default function Navegacao() {
 
   function openRouteCompletion(statuses = routeStopStatuses) {
     setCompletionStatuses(statuses);
+    setRouteRating(null);
+    setRouteFeedbackComment('');
+    setFeedbackSubmitted(false);
+    setFeedbackError(null);
     setCompletionVisible(true);
   }
 
   function closeRouteCompletion() {
+    if (isSubmittingFeedback) return;
     setCompletionVisible(false);
+    setRouteRating(null);
+    setRouteFeedbackComment('');
+    setFeedbackSubmitted(false);
+    setFeedbackError(null);
     setLastResult(null);
     resetNavigation();
+  }
+
+  async function submitRouteFeedback() {
+    if (routeRating == null || !lastResult || isSubmittingFeedback) return;
+    setIsSubmittingFeedback(true);
+    setFeedbackError(null);
+    try {
+      await feedbackApi.sendRouteFeedback(
+        routeRating,
+        routeFeedbackComment.trim() || null,
+        {
+          stop_count: orderedStops.length,
+          distance_km: lastResult.total_distance_km,
+          duration_min: lastResult.total_duration_min,
+          visited_count: completionVisitedCount,
+          skipped_count: completionSkippedCount,
+        },
+        token,
+      );
+      setFeedbackSubmitted(true);
+    } catch {
+      setFeedbackError('Não foi possível enviar agora. Verifique sua conexão e tente novamente.');
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
   }
 
   function updateStopStatus(order: number, status: RouteStopStatus) {
@@ -924,6 +974,16 @@ export default function Navegacao() {
       >
         <Ionicons name={hasLocationPermission ? 'locate' : 'locate-outline'} size={20} color={colors.text} />
       </Pressable>
+      {lastResult ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Mostrar trajeto completo"
+          style={[styles.currentLocationButton, { top: insets.top + 184 }]}
+          onPress={focusCompleteRoute}
+        >
+          <Ionicons name="scan-outline" size={20} color={colors.text} />
+        </Pressable>
+      ) : null}
       <Pressable
         accessibilityLabel="Rotas salvas"
         style={[styles.savedRoutesButton, { top: insets.top + 10 }]}
@@ -1293,71 +1353,166 @@ export default function Navegacao() {
         statusBarTranslucent
         onRequestClose={closeRouteCompletion}
       >
-        <View
-          style={[
-            styles.completionBackdrop,
-            { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 },
-          ]}
+        <KeyboardAvoidingView
+          style={styles.completionKeyboard}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <Animated.View
+          <View
             style={[
-              styles.completionCard,
-              {
-                opacity: completionOpacity,
-                transform: [{ scale: completionScale }],
-              },
+              styles.completionBackdrop,
+              { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 },
             ]}
           >
-            <View style={styles.completionIconHalo}>
-              <View style={styles.completionIconCircle}>
-                <Ionicons name="checkmark" size={34} color={colors.onAccent} />
-              </View>
-            </View>
-            <Text style={styles.completionEyebrow}>TRAJETO FINALIZADO</Text>
-            <Text style={styles.completionTitle}>Rota concluída!</Text>
-            <Text style={styles.completionMessage}>
-              Você chegou ao fim da rota. Bom trabalho!
-            </Text>
-
-            <View style={styles.completionStats}>
-              <View style={styles.completionStat}>
-                <Ionicons name="location-outline" size={18} color={colors.accent} />
-                <Text style={styles.completionStatValue}>{orderedStops.length}</Text>
-                <Text style={styles.completionStatLabel}>
-                  {orderedStops.length === 1 ? 'parada' : 'paradas'}
+            <Animated.View
+              style={[
+                styles.completionCard,
+                {
+                  maxHeight: windowHeight - insets.top - insets.bottom - 24,
+                  opacity: completionOpacity,
+                  transform: [{ scale: completionScale }],
+                },
+              ]}
+            >
+              <ScrollView
+                style={styles.completionScroll}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.completionCardContent}
+              >
+                <View style={styles.completionIconHalo}>
+                  <View style={styles.completionIconCircle}>
+                    <Ionicons name="checkmark" size={34} color={colors.onAccent} />
+                  </View>
+                </View>
+                <Text style={styles.completionEyebrow}>TRAJETO FINALIZADO</Text>
+                <Text style={styles.completionTitle}>
+                  {feedbackSubmitted ? 'Obrigado pelo feedback!' : 'Rota concluída!'}
                 </Text>
-              </View>
-              <View style={styles.completionStatDivider} />
-              <View style={styles.completionStat}>
-                <Ionicons name="navigate-outline" size={18} color={colors.accent} />
-                <Text style={styles.completionStatValue}>
-                  {lastResult ? lastResult.total_distance_km.toFixed(1) : '—'}
+                <Text style={styles.completionMessage}>
+                  {feedbackSubmitted
+                    ? 'Agradecemos por compartilhar sua experiência.'
+                    : 'Você chegou ao fim da rota. Bom trabalho!'}
                 </Text>
-                <Text style={styles.completionStatLabel}>km</Text>
-              </View>
-              <View style={styles.completionStatDivider} />
-              <View style={styles.completionStat}>
-                <Ionicons name="time-outline" size={18} color={colors.accent} />
-                <Text style={styles.completionStatValue}>
-                  {lastResult?.total_duration_min != null
-                    ? formatRouteDuration(lastResult.total_duration_min)
-                    : '—'}
+
+                <View style={styles.completionStats}>
+                  <View style={styles.completionStat}>
+                    <Ionicons name="location-outline" size={18} color={colors.accent} />
+                    <Text style={styles.completionStatValue}>{orderedStops.length}</Text>
+                    <Text style={styles.completionStatLabel}>
+                      {orderedStops.length === 1 ? 'parada' : 'paradas'}
+                    </Text>
+                  </View>
+                  <View style={styles.completionStatDivider} />
+                  <View style={styles.completionStat}>
+                    <Ionicons name="navigate-outline" size={18} color={colors.accent} />
+                    <Text style={styles.completionStatValue}>
+                      {lastResult ? lastResult.total_distance_km.toFixed(1) : '—'}
+                    </Text>
+                    <Text style={styles.completionStatLabel}>km</Text>
+                  </View>
+                  <View style={styles.completionStatDivider} />
+                  <View style={styles.completionStat}>
+                    <Ionicons name="time-outline" size={18} color={colors.accent} />
+                    <Text style={styles.completionStatValue}>
+                      {lastResult?.total_duration_min != null
+                        ? formatRouteDuration(lastResult.total_duration_min)
+                        : '—'}
+                    </Text>
+                    <Text style={styles.completionStatLabel}>tempo</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.completionStatusSummary}>
+                  {completionVisitedCount} {completionVisitedCount === 1 ? 'visitada' : 'visitadas'}
+                  {' · '}{completionSkippedCount} {completionSkippedCount === 1 ? 'pulada' : 'puladas'}
                 </Text>
-                <Text style={styles.completionStatLabel}>tempo</Text>
-              </View>
-            </View>
 
-            <Text style={styles.completionStatusSummary}>
-              {completionVisitedCount} {completionVisitedCount === 1 ? 'visitada' : 'visitadas'}
-              {' · '}{completionSkippedCount} {completionSkippedCount === 1 ? 'pulada' : 'puladas'}
-            </Text>
+                {feedbackSubmitted ? (
+                  <View style={styles.feedbackThanks}>
+                    <Ionicons name="heart" size={17} color={colors.success} />
+                    <Text style={styles.feedbackThanksText}>Sua opinião faz diferença.</Text>
+                  </View>
+                ) : (
+                  <View style={styles.feedbackSection}>
+                    <View style={styles.feedbackDivider} />
+                    <Text style={styles.feedbackTitle}>Como foi sua experiência?</Text>
+                    <Text style={styles.feedbackDescription}>Sua avaliação é opcional.</Text>
+                    <View style={styles.ratingChoices}>
+                      {[1, 2, 3, 4, 5].map((rating) => (
+                        <Pressable
+                          key={rating}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Avaliar rota com ${rating} ${rating === 1 ? 'estrela' : 'estrelas'}`}
+                          accessibilityState={{ selected: routeRating === rating }}
+                          hitSlop={5}
+                          style={styles.ratingButton}
+                          onPress={() => setRouteRating(rating)}
+                        >
+                          <Ionicons
+                            name={routeRating != null && rating <= routeRating ? 'star' : 'star-outline'}
+                            size={30}
+                            color={routeRating != null && rating <= routeRating ? '#f5b942' : colors.textMuted}
+                          />
+                        </Pressable>
+                      ))}
+                    </View>
+                    <TextInput
+                      accessibilityLabel="Comentário sobre a rota, opcional"
+                      style={styles.feedbackInput}
+                      placeholder="Quer comentar? (opcional)"
+                      placeholderTextColor={colors.textMuted}
+                      value={routeFeedbackComment}
+                      onChangeText={setRouteFeedbackComment}
+                      maxLength={500}
+                      multiline
+                      numberOfLines={3}
+                      textAlignVertical="top"
+                    />
+                    <Text style={styles.feedbackCharacterCount}>
+                      {routeFeedbackComment.length}/500
+                    </Text>
+                    {feedbackError ? (
+                      <Text accessibilityRole="alert" style={styles.feedbackError}>
+                        {feedbackError}
+                      </Text>
+                    ) : null}
+                    <Pressable
+                      style={[
+                        styles.completionButton,
+                        (routeRating == null || isSubmittingFeedback) && styles.completionButtonDisabled,
+                      ]}
+                      disabled={routeRating == null || isSubmittingFeedback}
+                      onPress={submitRouteFeedback}
+                    >
+                      {isSubmittingFeedback ? (
+                        <ActivityIndicator color={colors.onAccent} />
+                      ) : (
+                        <>
+                          <Text style={styles.completionButtonText}>Enviar avaliação</Text>
+                          <Ionicons name="arrow-forward" size={18} color={colors.onAccent} />
+                        </>
+                      )}
+                    </Pressable>
+                    <Pressable
+                      style={styles.feedbackSkipButton}
+                      disabled={isSubmittingFeedback}
+                      onPress={closeRouteCompletion}
+                    >
+                      <Text style={styles.feedbackSkipText}>Agora não</Text>
+                    </Pressable>
+                  </View>
+                )}
 
-            <Pressable style={styles.completionButton} onPress={closeRouteCompletion}>
-              <Text style={styles.completionButtonText}>Voltar ao mapa</Text>
-              <Ionicons name="arrow-forward" size={18} color={colors.onAccent} />
-            </Pressable>
-          </Animated.View>
-        </View>
+                {feedbackSubmitted ? (
+                  <Pressable style={styles.completionButton} onPress={closeRouteCompletion}>
+                    <Text style={styles.completionButtonText}>Voltar ao mapa</Text>
+                    <Ionicons name="arrow-forward" size={18} color={colors.onAccent} />
+                  </Pressable>
+                ) : null}
+              </ScrollView>
+            </Animated.View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <OptionSheet
@@ -1589,16 +1744,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(4, 8, 18, 0.78)',
     paddingHorizontal: 22,
   },
+  completionKeyboard: { flex: 1 },
   completionCard: {
     width: '100%',
     maxWidth: 420,
-    alignItems: 'center',
-    padding: 24,
     borderRadius: 26,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
+    overflow: 'hidden',
   },
+  completionScroll: { width: '100%', flexShrink: 1 },
+  completionCardContent: { alignItems: 'center', padding: 24 },
   completionIconHalo: {
     width: 88,
     height: 88,
@@ -1664,6 +1821,62 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   completionButtonText: { color: colors.onAccent, fontSize: 15, fontWeight: '700' },
+  completionButtonDisabled: { opacity: 0.42 },
+  feedbackSection: { width: '100%', alignItems: 'center' },
+  feedbackDivider: { width: '100%', height: 1, backgroundColor: colors.border, marginBottom: 18 },
+  feedbackTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
+  feedbackDescription: { color: colors.textMuted, fontSize: 13, marginTop: 5 },
+  ratingChoices: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 13,
+    marginBottom: 12,
+  },
+  ratingButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  feedbackInput: {
+    width: '100%',
+    minHeight: 82,
+    maxHeight: 120,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+  },
+  feedbackCharacterCount: {
+    alignSelf: 'flex-end',
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 5,
+    marginBottom: 10,
+  },
+  feedbackError: {
+    alignSelf: 'stretch',
+    color: colors.dangerMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  feedbackSkipButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  feedbackSkipText: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
+  feedbackThanks: {
+    width: '100%',
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(26, 127, 60, 0.12)',
+    marginBottom: 18,
+  },
+  feedbackThanksText: { color: colors.success, fontSize: 14, fontWeight: '700' },
   saveRouteBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
